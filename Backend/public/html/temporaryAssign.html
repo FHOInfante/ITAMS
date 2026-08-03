@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Temporary Assignments</title>
+
+    <link rel="stylesheet" href="../css/sidebar.css">
+    <link rel="stylesheet" href="../css/temporaryAssign.css">
+
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="icon" type="image/png" href="/assets/itd-logo-tab.png">
+</head>
+<body>
+
+    <!-- Sidebar gets injected here -->
+    <div id="sidebar-container"></div>
+
+    <main class="main-content">
+
+        <!-- ── Page Header ──────────────────────────────────────────── -->
+        <div class="page-header">
+            <div>
+                <div class="breadcrumb">
+                    <a href="computer.html">IT Assets</a>
+                    <span class="breadcrumb-sep">></span>
+                    <span>Temporary Assignments</span>
+                </div>
+                <h1 class="page-title">Temporary Assignments</h1> 
+            </div>
+            <div class="header-actions">
+                <div class="summary-chips" id="summarychips"></div>
+                <button class="btn-secondary" onclick="loadAssignments()">
+                    <i data-lucide="refresh-cw"></i> Refresh
+                </button>
+            </div>
+        </div>
+
+        <!-- ── Filter / Search Bar ──────────────────────────────────── -->
+        <div class="filters-card">
+        <div class="filter-bar">
+            <div class="search-wrap">
+                <i data-lucide="search" class="search-icon"></i>
+                <input
+                    type="text"
+                    id="searchInput"
+                    placeholder="Search by name, employee ID, department, or computer…"
+                    oninput="applyFilters()"
+                />
+                <button class="btn-clear-search" id="clearSearchBtn" onclick="clearSearchInput()" title="Clear search">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <select id="urgencyFilter" onchange="applyFilters()">
+                <option value="">All</option>
+                <option value="overdue">Overdue</option>
+                <option value="due-today">Due Today</option>
+                <option value="due-soon">Due in 3 Days</option>
+                <option value="upcoming">Upcoming</option>
+            </select>
+
+            <!-- ── Custom Date Range ──────────────────────────────────── -->
+            <div class="date-range-group">
+                <div class="date-field-wrap">
+                    <label class="date-field-label" for="dateFrom">From</label>
+                    <input type="date" id="dateFrom" class="date-field-input" onchange="applyFilters()" />
+                </div>
+                <span class="date-range-sep">—</span>
+                <div class="date-field-wrap">
+                    <label class="date-field-label" for="dateTo">To</label>
+                    <input type="date" id="dateTo" class="date-field-input" onchange="applyFilters()" />
+                </div>
+                <button class="btn-clear-range" id="clearRangeBtn" onclick="clearDateRange()" title="Clear date range">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+        </div>
+        </div>
+
+        <!-- ── Assignment List ───────────────────────────────────────── -->
+        <div id="pageContent">
+            <div class="state-wrapper">
+                <i data-lucide="loader-circle"></i>
+                <p>Loading temporary assignments…</p>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- ── Confirm Return Modal ──────────────────────────────────── -->
+    <div id="confirmModal" class="modal-backdrop" style="display:none">
+        <div class="modal-box">
+            <div class="modal-header">
+                <div class="modal-icon">
+                    <i data-lucide="check-circle-2"></i>
+                </div>
+                <div>
+                    <div class="modal-title">Confirm Return</div>
+                    <div class="modal-subtitle" id="modalSubtitle">—</div>
+                </div>
+            </div>
+            <div class="modal-body">
+                <p>Mark this computer as <strong>returned</strong>? This will:</p>
+                <ul>
+                    <li>Set the computer status back to <strong>Available</strong></li>
+                    <li>Clear the temporary assignment record</li>
+                    <li>Log the actual return date as today</li>
+                </ul>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal()">
+                    <i data-lucide="x"></i> Cancel
+                </button>
+                <button class="btn-success" id="confirmReturnBtn" onclick="confirmReturn()">
+                    <i data-lucide="check"></i> Confirm Return
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Toast Notification ─────────────────────────────────── -->
+    <div id="toast"></div>
+
+    <script src="../script/temporaryAssign.js"></script>
+    <script src="../script/sidebar.js" defer></script>
+
+</body>
+</html>

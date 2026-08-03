@@ -1,0 +1,113 @@
+openapi: 3.0.3
+
+info:
+  title: IT Asset Management System API
+  version: 1.0.0
+  description: |
+    REST API documentation for the IT Asset Management System backend.
+    All protected routes require a Bearer JWT token obtained from the /auth/login endpoint.
+    Permissions are embedded in the token and checked on each request.
+
+      **Permission Reference:**
+
+        1  = View Audit Trails - Computer
+        2  = View Audit Trails - Software
+        3  = View Audit Trails - Printer
+        4  = View Audit Trails - UPS
+        5  = View Audit Trails - Network Device
+        6  = View Audit Trails - System
+        7  = View Purchase Requests
+        8  = View System Users
+        9  = Add Asset - Computer
+        10 = Add Asset - Software
+        11 = Add Asset - Printer
+        12 = Add Asset - UPS
+        13 = Add Asset - Network Device
+        14 = Create Purchase Requests
+        15 = Add New Department
+        16 = Add New Peripheral
+        17 = Add New Program
+        18 = Add New Dropdown Option
+        19 = Add New Vendor
+        20 = Add New End Users
+        21 = Add New System User
+        22 = Assign Asset - Computer
+        23 = Assign Asset - Software
+        24 = Edit Asset - Computer
+        25 = Edit Asset - Software
+        26 = Edit Asset - Printer
+        27 = Edit Asset - UPS
+        28 = Edit Asset - Network Device
+        29 = Edit Asset - Computer (Network Fields)
+        30 = Edit Asset - Printer (Network Fields)
+        31 = Edit Department Details
+        32 = Edit Peripheral Details
+        33 = Edit Program Details
+        34 = Edit Dropdown Option Status
+        35 = Edit Vendor Details
+        36 = Edit End User Details
+        37 = Edit Purchase Requests
+        38 = Edit System User Account
+        39 = Grant Special Access
+        40 = Revoke Special Access
+        41 = Reset System User Password
+        42 = Generate Report
+
+servers:
+  - url: /api
+    description: "Base API Path"
+  - url: http://localhost:5000/api
+    description: "Local — HTTP (port 5000)"
+
+tags:
+  - name: Auth
+    description: >
+      Authentication endpoints.
+  - name: Users
+    description: >
+      System user account management endpoints.
+  - name: Permissions
+    description: >
+      Permission management endpoints.
+  - name: Computers
+    description: >
+      Computer asset management endpoints.
+  - name: Software
+    description: >
+      Software license management endpoints.
+  - name: Printers
+    description: >
+      Printer asset management endpoints.
+  - name: UPS
+    description: >
+      UPS (Uninterruptible Power Supply) asset management endpoints.
+  - name: Network Devices
+    description: >
+      Network device asset management endpoints (switches, routers, access points, firewalls, etc.).
+  - name: Purchase Requests
+    description: >
+      Purchase request management endpoints.
+  - name: End Users
+    description: >
+      End user record endpoints.
+  - name: Departments
+    description: >
+      Department lookup and management endpoints.
+  - name: Peripherals
+    description: >
+      Peripheral type lookup and management endpoints.
+  - name: Programs
+    description: >
+      System program/application lookup and management endpoints.
+  - name: Vendors
+    description: >
+      Asset vendor lookup and management endpoints.
+  - name: Categories
+    description: >
+      Category management endpoints.
+  - name: Reports
+    description: >
+      Report generation endpoints.
+  - name: Audit Logs
+    description: >
+      System audit trail endpoints.

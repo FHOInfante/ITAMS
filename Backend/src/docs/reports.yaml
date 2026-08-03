@@ -1,0 +1,1230 @@
+paths:
+  /report/computer:
+    get:
+      tags:
+        - Reports
+      summary: Download computer asset report
+      description: >
+        Generates and downloads an Excel (.xlsx) report containing computer asset records,
+        including assigned end-user details and linked peripherals.
+
+
+        Requires Permission **42 (Generate Report)**.
+
+
+        **Date Filter:** Use the optional query parameters below to filter records by
+        received_date. Both parameters are independent — either or both may be supplied.
+
+        - Supplying only date_from returns all records received on or after that date.
+
+        - Supplying only date_to returns all records received on or before that date.
+
+        - Supplying both returns records within the inclusive date range.
+
+
+        **Column Selection:** Use the optional columns query parameter to control which
+        columns appear in the report, and in what order.
+
+        - If columns is omitted entirely, the report includes every available column below,
+          in the default order shown.
+
+        - If columns is supplied, only the listed columns are included, presented in the
+          exact left-to-right order the keys were given in.
+
+        - Any key in columns that does not match one of the allowed keys below causes the
+          entire request to fail with a 400 response listing the offending key(s). No
+          partial reports are generated.
+
+
+        **Allowed column keys for this report (in default order):**
+
+        - computer_name
+
+        - asset_tag
+
+        - serial_no
+
+        - brand
+
+        - model
+
+        - device_type
+
+        - operating_system
+
+        - computer_status
+
+        - asset_condition
+
+        - received_date
+
+        - warranty_expiry
+
+        - vendor
+
+        - processor
+
+        - ram_size
+
+        - storage_type
+
+        - storage_capacity
+
+        - ip_address
+
+        - mac_address
+
+        - network_connectivity
+
+        - has_vpn_access
+
+        - anydesk_ip
+
+        - cost
+
+        - assigned_user_name
+
+        - assigned_user_emp_id
+
+        - assigned_date
+
+        - to_return_by
+
+        - peripherals
+
+        - remarks
+
+
+        The response is a binary .xlsx file download, not JSON. The filename returned
+        by the server will be computer_report.xlsx.
+
+
+        A successful download is recorded as an audit log entry of interaction type
+        Download Computer Report, capturing the requesting user, the resolved column
+        list, and the applied date range.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: date_from
+          schema:
+            type: string
+            format: date
+          required: false
+          description: >
+            Optional. Filters records where received_date is on or after this date.
+            Format: YYYY-MM-DD. Example: 2023-01-01
+          example: "2023-01-01"
+        - in: query
+          name: date_to
+          schema:
+            type: string
+            format: date
+          required: false
+          description: >
+            Optional. Filters records where received_date is on or before this date.
+            Format: YYYY-MM-DD. Example: 2024-12-31
+          example: "2024-12-31"
+        - in: query
+          name: columns
+          schema:
+            type: string
+          required: false
+          description: >
+            Optional. Comma-separated list of column keys to include in the report, in the
+            exact order they should appear. See the endpoint description above for the full
+            list of allowed keys. When omitted, all columns are included in default order.
+          example: "computer_name,brand,model,computer_status,assigned_user_name"
+      responses:
+        "200":
+          description: >
+            Excel file download. The response body is the raw binary content of the
+            .xlsx file. The Content-Disposition header will be set to
+            attachment; filename="computer_report.xlsx".
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+        "400":
+          description: >
+            Bad Request — One or more date parameters are not in YYYY-MM-DD format, the
+            columns parameter contains one or more unrecognized keys, or columns resolved
+            to an empty set.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              examples:
+                invalidDateFrom:
+                  summary: date_from is not a valid date
+                  value:
+                    message: "Invalid dateFrom format. Use YYYY-MM-DD."
+                invalidDateTo:
+                  summary: date_to is not a valid date
+                  value:
+                    message: "Invalid dateTo format. Use YYYY-MM-DD."
+                invalidColumns:
+                  summary: One or more column keys are not recognized
+                  value:
+                    message: "Invalid column key(s): computer_idd, statuss"
+                    invalidKeys: ["computer_idd", "statuss"]
+                emptyColumns:
+                  summary: columns parameter resolved to no valid columns
+                  value:
+                    message: "No valid columns were specified."
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          description: "Internal Server Error — Report generation failed."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              example:
+                message: "Failed to generate computer report"
+
+  /report/software:
+    get:
+      tags:
+        - Reports
+      summary: Download software license report
+      description: >
+        Generates and downloads an Excel (.xlsx) report containing software license records,
+        including assigned end-user details.
+
+
+        Requires Permission **42 (Generate Report)**.
+
+
+        **Date Filter:** Use the optional query parameters below to filter records by
+        purchase_date. Both parameters are independent — either or both may be supplied.
+
+        - Supplying only date_from returns all records purchased on or after that date.
+
+        - Supplying only date_to returns all records purchased on or before that date.
+
+        - Supplying both returns records within the inclusive date range.
+
+
+        **Column Selection:** Use the optional columns query parameter to control which
+        columns appear in the report, and in what order.
+
+        - If columns is omitted entirely, the report includes every available column below,
+          in the default order shown.
+
+        - If columns is supplied, only the listed columns are included, presented in the
+          exact left-to-right order the keys were given in.
+
+        - Any key in columns that does not match one of the allowed keys below causes the
+          entire request to fail with a 400 response listing the offending key(s). No
+          partial reports are generated.
+
+
+        **Allowed column keys for this report (in default order):**
+
+        - software_name
+
+        - vendor
+
+        - license_type
+
+        - subscription_id
+
+        - purchase_date
+
+        - renewal_date
+
+        - expiry_date
+
+        - cost
+
+        - previous_cost
+
+        - software_status
+
+        - assigned_user_name
+
+        - assigned_user_emp_id
+
+        - assigned_date
+
+        - remarks
+
+
+        The response is a binary .xlsx file download, not JSON. The filename returned
+        by the server will be software_report.xlsx.
+
+
+        A successful download is recorded as an audit log entry of interaction type
+        Download Software Report, capturing the requesting user, the resolved column
+        list, and the applied date range.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: date_from
+          schema:
+            type: string
+            format: date
+          required: false
+          description: >
+            Optional. Filters records where purchase_date is on or after this date.
+            Format: YYYY-MM-DD. Example: 2023-01-01
+          example: "2023-01-01"
+        - in: query
+          name: date_to
+          schema:
+            type: string
+            format: date
+          required: false
+          description: >
+            Optional. Filters records where purchase_date is on or before this date.
+            Format: YYYY-MM-DD. Example: 2024-12-31
+          example: "2024-12-31"
+        - in: query
+          name: columns
+          schema:
+            type: string
+          required: false
+          description: >
+            Optional. Comma-separated list of column keys to include in the report, in the
+            exact order they should appear. See the endpoint description above for the full
+            list of allowed keys. When omitted, all columns are included in default order.
+          example: "software_name,license_type,software_status,expiry_date"
+      responses:
+        "200":
+          description: >
+            Excel file download. The response body is the raw binary content of the
+            .xlsx file. The Content-Disposition header will be set to
+            attachment; filename="software_report.xlsx".
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+        "400":
+          description: >
+            Bad Request — One or more date parameters are not in YYYY-MM-DD format, the
+            columns parameter contains one or more unrecognized keys, or columns resolved
+            to an empty set.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              examples:
+                invalidDateFrom:
+                  summary: date_from is not a valid date
+                  value:
+                    message: "Invalid dateFrom format. Use YYYY-MM-DD."
+                invalidDateTo:
+                  summary: date_to is not a valid date
+                  value:
+                    message: "Invalid dateTo format. Use YYYY-MM-DD."
+                invalidColumns:
+                  summary: One or more column keys are not recognized
+                  value:
+                    message: "Invalid column key(s): license_typo, statuss"
+                    invalidKeys: ["license_typo", "statuss"]
+                emptyColumns:
+                  summary: columns parameter resolved to no valid columns
+                  value:
+                    message: "No valid columns were specified."
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          description: "Internal Server Error — Report generation failed."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              example:
+                message: "Failed to generate software report"
+
+  /report/ups:
+    get:
+      tags:
+        - Reports
+      summary: Download UPS asset report
+      description: >
+        Generates and downloads an Excel (.xlsx) report containing UPS asset records.
+        Where a UPS is assigned to a computer, the report also includes the assigned computer name,
+        department, and asset location (derived from the computer's assigned end user).
+
+
+        Requires Permission **42 (Generate Report)**.
+
+
+        **Date Filter:** Use the optional query parameters below to filter records by
+        received_date. Both parameters are independent — either or both may be supplied.
+
+        - Supplying only date_from returns all records received on or after that date.
+
+        - Supplying only date_to returns all records received on or before that date.
+
+        - Supplying both returns records within the inclusive date range.
+
+
+        **Column Selection:** Use the optional columns query parameter to control which
+        columns appear in the report, and in what order.
+
+        - If columns is omitted entirely, the report includes every available column below,
+          in the default order shown.
+
+        - If columns is supplied, only the listed columns are included, presented in the
+          exact left-to-right order the keys were given in.
+
+        - Any key in columns that does not match one of the allowed keys below causes the
+          entire request to fail with a 400 response listing the offending key(s). No
+          partial reports are generated.
+
+
+        **Allowed column keys for this report (in default order):**
+
+        - asset_tag
+
+        - serial_no
+
+        - brand
+
+        - model
+
+        - vendor
+
+        - capacity_va
+
+        - battery_replace_date
+
+        - asset_status
+
+        - asset_condition
+
+        - received_date
+
+        - warranty_expiry
+
+        - date_deployed
+
+        - cost
+
+        - assigned_to
+
+        - department_name
+
+        - asset_location
+
+        - remarks
+
+
+        The response is a binary .xlsx file download, not JSON. The filename returned
+        by the server will be ups_report.xlsx.
+
+
+        A successful download is recorded as an audit log entry of interaction type
+        Download UPS Report, capturing the requesting user, the resolved column
+        list, and the applied date range.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: date_from
+          schema:
+            type: string
+            format: date
+          required: false
+          description: >
+            Optional. Filters records where received_date is on or after this date.
+            Format: YYYY-MM-DD. Example: 2023-01-01
+          example: "2023-01-01"
+        - in: query
+          name: date_to
+          schema:
+            type: string
+            format: date
+          required: false
+          description: >
+            Optional. Filters records where received_date is on or before this date.
+            Format: YYYY-MM-DD. Example: 2024-12-31
+          example: "2024-12-31"
+        - in: query
+          name: columns
+          schema:
+            type: string
+          required: false
+          description: >
+            Optional. Comma-separated list of column keys to include in the report, in the
+            exact order they should appear. See the endpoint description above for the full
+            list of allowed keys. When omitted, all columns are included in default order.
+          example: "brand,model,asset_status,assigned_to,department_name"
+      responses:
+        "200":
+          description: >
+            Excel file download. The response body is the raw binary content of the
+            .xlsx file. The Content-Disposition header will be set to
+            attachment; filename="ups_report.xlsx".
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+        "400":
+          description: >
+            Bad Request — One or more date parameters are not in YYYY-MM-DD format, the
+            columns parameter contains one or more unrecognized keys, or columns resolved
+            to an empty set.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              examples:
+                invalidDateFrom:
+                  summary: date_from is not a valid date
+                  value:
+                    message: "Invalid dateFrom format. Use YYYY-MM-DD."
+                invalidDateTo:
+                  summary: date_to is not a valid date
+                  value:
+                    message: "Invalid dateTo format. Use YYYY-MM-DD."
+                invalidColumns:
+                  summary: One or more column keys are not recognized
+                  value:
+                    message: "Invalid column key(s): capacity, battery_date"
+                    invalidKeys: ["capacity", "battery_date"]
+                emptyColumns:
+                  summary: columns parameter resolved to no valid columns
+                  value:
+                    message: "No valid columns were specified."
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          description: "Internal Server Error — Report generation failed."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              example:
+                message: "Failed to generate UPS report"
+
+  /report/printer:
+    get:
+      tags:
+        - Reports
+      summary: Download printer asset report
+      description: >
+        Generates and downloads an Excel (.xlsx) report containing printer asset records,
+        including the resolved department name.
+
+
+        Requires Permission **42 (Generate Report)**.
+
+
+        **Date Filter:** Use the optional query parameters below to filter records by
+        received_date. Both parameters are independent — either or both may be supplied.
+
+        - Supplying only date_from returns all records received on or after that date.
+
+        - Supplying only date_to returns all records received on or before that date.
+
+        - Supplying both returns records within the inclusive date range.
+
+
+        **Column Selection:** Use the optional columns query parameter to control which
+        columns appear in the report, and in what order.
+
+        - If columns is omitted entirely, the report includes every available column below,
+          in the default order shown.
+
+        - If columns is supplied, only the listed columns are included, presented in the
+          exact left-to-right order the keys were given in.
+
+        - Any key in columns that does not match one of the allowed keys below causes the
+          entire request to fail with a 400 response listing the offending key(s). No
+          partial reports are generated.
+
+
+        **Allowed column keys for this report (in default order):**
+
+        - printer_name
+
+        - department_name
+
+        - asset_tag
+
+        - asset_location
+
+        - serial_no
+
+        - brand
+
+        - model
+
+        - vendor
+
+        - printer_type
+
+        - connectivity
+
+        - ip_address
+
+        - mac_address
+
+        - is_color
+
+        - asset_status
+
+        - asset_condition
+
+        - received_date
+
+        - warranty_expiry
+
+        - date_deployed
+
+        - cost
+
+        - remarks
+
+
+        The response is a binary .xlsx file download, not JSON. The filename returned
+        by the server will be printer_report.xlsx.
+
+
+        A successful download is recorded as an audit log entry of interaction type
+        Download Printer Report, capturing the requesting user, the resolved column
+        list, and the applied date range.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: date_from
+          schema:
+            type: string
+            format: date
+          required: false
+          description: >
+            Optional. Filters records where received_date is on or after this date.
+            Format: YYYY-MM-DD. Example: 2023-01-01
+          example: "2023-01-01"
+        - in: query
+          name: date_to
+          schema:
+            type: string
+            format: date
+          required: false
+          description: >
+            Optional. Filters records where received_date is on or before this date.
+            Format: YYYY-MM-DD. Example: 2024-12-31
+          example: "2024-12-31"
+        - in: query
+          name: columns
+          schema:
+            type: string
+          required: false
+          description: >
+            Optional. Comma-separated list of column keys to include in the report, in the
+            exact order they should appear. See the endpoint description above for the full
+            list of allowed keys. When omitted, all columns are included in default order.
+          example: "printer_name,department_name,is_color,asset_status"
+      responses:
+        "200":
+          description: >
+            Excel file download. The response body is the raw binary content of the
+            .xlsx file. The Content-Disposition header will be set to
+            attachment; filename="printer_report.xlsx".
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+        "400":
+          description: >
+            Bad Request — One or more date parameters are not in YYYY-MM-DD format, the
+            columns parameter contains one or more unrecognized keys, or columns resolved
+            to an empty set.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              examples:
+                invalidDateFrom:
+                  summary: date_from is not a valid date
+                  value:
+                    message: "Invalid dateFrom format. Use YYYY-MM-DD."
+                invalidDateTo:
+                  summary: date_to is not a valid date
+                  value:
+                    message: "Invalid dateTo format. Use YYYY-MM-DD."
+                invalidColumns:
+                  summary: One or more column keys are not recognized
+                  value:
+                    message: "Invalid column key(s): printer_color, dept"
+                    invalidKeys: ["printer_color", "dept"]
+                emptyColumns:
+                  summary: columns parameter resolved to no valid columns
+                  value:
+                    message: "No valid columns were specified."
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          description: "Internal Server Error — Report generation failed."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              example:
+                message: "Failed to generate printer report"
+
+  /report/network-device:
+    get:
+      tags:
+        - Reports
+      summary: Download network device asset report
+      description: >
+        Generates and downloads an Excel (.xlsx) report containing network device asset records.
+
+
+        Requires Permission **42 (Generate Report)**.
+
+
+        **Date Filter:** Use the optional query parameters below to filter records by
+        received_date. Both parameters are independent — either or both may be supplied.
+
+        - Supplying only date_from returns all records received on or after that date.
+
+        - Supplying only date_to returns all records received on or before that date.
+
+        - Supplying both returns records within the inclusive date range.
+
+
+        **Column Selection:** Use the optional columns query parameter to control which
+        columns appear in the report, and in what order.
+
+        - If columns is omitted entirely, the report includes every available column below,
+          in the default order shown.
+
+        - If columns is supplied, only the listed columns are included, presented in the
+          exact left-to-right order the keys were given in.
+
+        - Any key in columns that does not match one of the allowed keys below causes the
+          entire request to fail with a 400 response listing the offending key(s). No
+          partial reports are generated.
+
+
+        **Allowed column keys for this report (in default order):**
+
+        - network_device_name
+
+        - asset_tag
+
+        - asset_location
+
+        - serial_no
+
+        - brand
+
+        - model
+
+        - device_type
+
+        - vendor
+
+        - ip_address
+
+        - mac_address
+
+        - port_count
+
+        - firmware_version
+
+        - asset_status
+
+        - asset_condition
+
+        - received_date
+
+        - warranty_expiry
+
+        - date_deployed
+
+        - cost
+
+        - remarks
+
+
+        The response is a binary .xlsx file download, not JSON. The filename returned
+        by the server will be network_device_report.xlsx.
+
+
+        A successful download is recorded as an audit log entry of interaction type
+        Download Network Device Report, capturing the requesting user, the resolved column
+        list, and the applied date range.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: date_from
+          schema:
+            type: string
+            format: date
+          required: false
+          description: >
+            Optional. Filters records where received_date is on or after this date.
+            Format: YYYY-MM-DD. Example: 2023-01-01
+          example: "2023-01-01"
+        - in: query
+          name: date_to
+          schema:
+            type: string
+            format: date
+          required: false
+          description: >
+            Optional. Filters records where received_date is on or before this date.
+            Format: YYYY-MM-DD. Example: 2024-12-31
+          example: "2024-12-31"
+        - in: query
+          name: columns
+          schema:
+            type: string
+          required: false
+          description: >
+            Optional. Comma-separated list of column keys to include in the report, in the
+            exact order they should appear. See the endpoint description above for the full
+            list of allowed keys. When omitted, all columns are included in default order.
+          example: "network_device_name,device_type,asset_status,port_count"
+      responses:
+        "200":
+          description: >
+            Excel file download. The response body is the raw binary content of the
+            .xlsx file. The Content-Disposition header will be set to
+            attachment; filename="network_device_report.xlsx".
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+        "400":
+          description: >
+            Bad Request — One or more date parameters are not in YYYY-MM-DD format, the
+            columns parameter contains one or more unrecognized keys, or columns resolved
+            to an empty set.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              examples:
+                invalidDateFrom:
+                  summary: date_from is not a valid date
+                  value:
+                    message: "Invalid dateFrom format. Use YYYY-MM-DD."
+                invalidDateTo:
+                  summary: date_to is not a valid date
+                  value:
+                    message: "Invalid dateTo format. Use YYYY-MM-DD."
+                invalidColumns:
+                  summary: One or more column keys are not recognized
+                  value:
+                    message: "Invalid column key(s): firmware, port"
+                    invalidKeys: ["firmware", "port"]
+                emptyColumns:
+                  summary: columns parameter resolved to no valid columns
+                  value:
+                    message: "No valid columns were specified."
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          description: "Internal Server Error — Report generation failed."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              example:
+                message: "Failed to generate network device report"
+
+  /report/end-user:
+    get:
+      tags:
+        - Reports
+      summary: Download end user report
+      description: >
+        Generates and downloads an Excel (.xlsx) report containing end user records,
+        including their resolved department name and, optionally, a summary of their
+        assigned computers and/or software.
+
+
+        Requires Permission **42 (Generate Report)**.
+
+
+        **Department Filter:** Use the optional department query parameter to restrict
+        the report to one or more departments.
+
+        - Accepts a comma-separated list of department names (case-insensitive) and/or
+          numeric department_id values, and the two may be mixed freely, e.g.
+          IT Department,5,ICU Department.
+
+        - If department is omitted, or resolves to an empty list after parsing (e.g. an
+          empty string), the report includes end users from every department.
+
+        - If any supplied value does not match an existing department by name or ID, the
+          entire request fails with a 400 response listing the offending value(s). No
+          partial reports are generated.
+
+
+        **Asset Column Toggle:** Use the optional asset query parameter to control which
+        optional column groups appear in the report. This does not filter which end
+        users are included — it only toggles which columns are shown for all of them.
+
+        - Accepts a comma-separated, case-insensitive list containing Computer and/or
+          Software, in any combination, e.g. asset=Computer or asset=Computer,Software.
+
+        - If asset is omitted entirely, both the computer and software column groups
+          are included by default.
+
+        - If asset is supplied but resolves to an empty list (e.g. an empty string),
+          neither optional column group is included — only the base end user columns
+          are shown.
+
+        - Any value in asset that is not (case-insensitively) Computer or Software
+          causes the entire request to fail with a 400 response listing the offending
+          value(s). No partial reports are generated. Duplicate values are silently
+          deduplicated.
+
+
+        **Base columns (always included):**
+
+        - eu_name
+
+        - eu_emp_id
+
+        - eu_division
+
+        - department_name
+
+        - eu_location
+
+        - eu_email
+
+        - eu_contact_no
+
+        - eu_status
+
+
+        **Computer columns (included when asset includes Computer):**
+
+        - computer_count — the number of computers currently assigned to the end user
+
+        - assigned_computers — a comma-separated list of the end user's assigned
+          computers, shown as computer name followed by asset tag in parentheses
+
+
+        **Software columns (included when asset includes Software):**
+
+        - software_count — the number of software licenses currently assigned to the
+          end user
+
+        - assigned_software — a comma-separated list of the end user's assigned
+          software names
+
+
+        This report has no date-based filter, since end_user has no date column to
+        filter against.
+
+
+        The response is a binary .xlsx file download, not JSON. The filename returned
+        by the server will be end_user_report.xlsx.
+
+
+        A successful download is recorded as an audit log entry of interaction type
+        Download End User Report, capturing the requesting user, the resolved
+        department filter, and the resolved asset column toggles.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: department
+          schema:
+            type: string
+          required: false
+          description: >
+            Optional. Comma-separated list of department names (case-insensitive) and/or
+            numeric department_id values to filter the report by. When omitted, or when
+            it resolves to an empty list, end users from all departments are included.
+          example: "IT Department,ICU Department"
+        - in: query
+          name: asset
+          schema:
+            type: string
+          required: false
+          description: >
+            Optional. Comma-separated, case-insensitive list of asset column groups to
+            include: **Computer** and/or **Software**. When omitted, both column groups
+            are included by default. When supplied but empty, neither is included.
+          example: "Computer,Software"
+      responses:
+        "200":
+          description: >
+            Excel file download. The response body is the raw binary content of the
+            .xlsx file. The Content-Disposition header will be set to
+            attachment; filename="end_user_report.xlsx".
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+        "400":
+          description: >
+            Bad Request — The asset parameter contains one or more values other than
+            Computer or Software, or the department parameter contains one or more
+            values that do not match an existing department by name or ID.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              examples:
+                invalidAsset:
+                  summary: asset contains an unrecognized value
+                  value:
+                    message: "Invalid asset type(s): Printer. Allowed values are Computer and Software."
+                    invalidValues: ["Printer"]
+                invalidDepartment:
+                  summary: department contains a value that does not match any department
+                  value:
+                    message: "Invalid department(s): IT Deparment, 999"
+                    invalidValues: ["IT Deparment", "999"]
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          description: "Internal Server Error — Report generation failed."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              example:
+                message: "Failed to generate end user report"
+
+  /report/audit:
+    get:
+      tags:
+        - Reports
+      summary: Download audit trail report
+      description: >
+        Generates and downloads an Excel (.xlsx) report containing audit trail entries,
+        formatted exactly like the BizBox-style audit trail: one row per individually
+        changed field, with columns for the affected asset/entity, the date, the
+        action taken, the field that changed, its old and new values, and the acting
+        user. This is the same field-level flattening already served by the dedicated
+        audit trail endpoints under /audit — this endpoint simply packages that same
+        data as a downloadable workbook instead of JSON.
+
+
+        Requires Permission **42 (Generate Report)**.
+
+
+        **Type Selection (REQUIRED):** Use the required type query parameter to choose
+        which audit categories to include. Each requested type produces its own sheet
+        (tab) in the returned workbook, named after the type.
+
+        - Accepts a comma-separated, case-insensitive list of one or more of the
+          following ENUM values: **Computer**, **Software**, **Printer**,
+          **Network Device**, **UPS**, **Purchase Request**, **User**, **End User**.
+
+        - type is REQUIRED — omitting it entirely, or supplying it as an empty string,
+          causes the entire request to fail with a 400 response. There is no
+          "all types" default.
+
+        - Any value in type that does not case-insensitively match one of the ENUM
+          values above causes the entire request to fail with a 400 response listing
+          the offending value(s). No partial reports are generated.
+
+        - Duplicate values (e.g. Computer,computer) are silently deduplicated, and
+          sheets are added in the order the types were supplied in.
+
+        - Purchase Request pulls both header-level (Add/Update Purchase Request) and
+          item-level (Add/Update/Delete Purchase Request Item) interactions, matching
+          GET /audit/purchase-request. User covers the target_table = "user" trail
+          (account creation, field edits, and permission grants/revokes), and End User
+          covers target_table = "end_user" (registration, edits, and status changes),
+          matching their respective dedicated endpoints.
+
+
+        **Date Filter:** Use the optional query parameters below to filter every
+        requested type's sheet by interaction_date. Both parameters are independent —
+        either or both may be supplied.
+
+        - Supplying only date_from returns all audit entries logged on or after that
+          date.
+
+        - Supplying only date_to returns all audit entries logged on or before that
+          date (inclusive of the entire day, not just 00:00:00, since
+          interaction_date carries a time component).
+
+        - Supplying both returns entries within the inclusive date range.
+
+
+        **Columns:** Unlike the asset reports, this report's columns are fixed and NOT
+        customizable via a columns query parameter — every sheet always shows the
+        same seven BizBox-style columns, in this exact order:
+
+        - Name of Affected Asset/Entity — resolved from the stored snapshot at the
+          time of the interaction (e.g. computer_name, software_name), so it stays
+          accurate even if the asset was later renamed or deleted. Purchase Request
+          rows show PR-<pr_no>, with an item description appended for item-level
+          events, e.g. PR-1023 – Laptop Charger.
+
+        - Date — the interaction_date timestamp, formatted as YYYY-MM-DD HH:mm:ss.
+
+        - Transaction/Action — the interaction_type (e.g. Add Computer, Update
+          Software, Grant Permission).
+
+        - Field — the specific field that changed, in human-readable form (e.g. IP
+          Address, Assigned User). Shows - for interactions that produced no field
+          -level changes.
+
+        - Old Value / New Value — the field's value before and after the change. For
+          creation events, Old Value is - since no prior value existed. Shows - when
+          Field is also -.
+
+        - User Name (Actor) — the name of the user who performed the action.
+
+        A single Add/Update event that touched N fields produces N rows sharing the
+        same asset/entity, date, and action — this matches the row-per-field shape
+        already used by every /audit/* endpoint.
+
+
+        The response is a binary .xlsx file download, not JSON. The filename returned
+        by the server will be audit_report.xlsx, containing one worksheet per
+        requested type.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: type
+          schema:
+            type: string
+          required: true
+          description: >
+            REQUIRED. Comma-separated, case-insensitive list of one or more audit
+            categories to include, each rendered as its own worksheet. Allowed ENUM
+            values: Computer, Software, Printer, Network Device, UPS,
+            Purchase Request, User, End User. Also accepts the type parameter
+            repeated across multiple query entries (e.g. type=Computer&type=Software)
+            as an alternative to the comma-separated form.
+          example: "Computer,Software,Purchase Request"
+        - in: query
+          name: date_from
+          schema:
+            type: string
+            format: date
+          required: false
+          description: >
+            Optional. Filters every requested type's sheet to entries where
+            interaction_date is on or after this date. Format: YYYY-MM-DD.
+            Example: 2023-01-01
+          example: "2023-01-01"
+        - in: query
+          name: date_to
+          schema:
+            type: string
+            format: date
+          required: false
+          description: >
+            Optional. Filters every requested type's sheet to entries where
+            interaction_date is on or before this date (inclusive of the entire day).
+            Format: YYYY-MM-DD. Example: 2024-12-31
+          example: "2024-12-31"
+      responses:
+        "200":
+          description: >
+            Excel file download. The response body is the raw binary content of the
+            .xlsx file, containing one worksheet per requested type. The
+            Content-Disposition header will be set to
+            attachment; filename="audit_report.xlsx".
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+        "400":
+          description: >
+            Bad Request — The type parameter was omitted or empty, the type
+            parameter contains one or more values outside the allowed ENUM list, or
+            one or both date parameters are not in YYYY-MM-DD format.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              examples:
+                missingType:
+                  summary: type query parameter was omitted or empty
+                  value:
+                    message: "The 'type' query parameter is required. Allowed values are: Computer, Software, Printer, Network Device, UPS, Purchase Request, User, End User."
+                invalidType:
+                  summary: type contains one or more values outside the allowed ENUM list
+                  value:
+                    message: "Invalid audit type(s): Router, Monitor. Allowed values are: Computer, Software, Printer, Network Device, UPS, Purchase Request, User, End User."
+                    invalidValues: ["Router", "Monitor"]
+                invalidDateFrom:
+                  summary: date_from is not a valid date
+                  value:
+                    message: "Invalid dateFrom format. Use YYYY-MM-DD."
+                invalidDateTo:
+                  summary: date_to is not a valid date
+                  value:
+                    message: "Invalid dateTo format. Use YYYY-MM-DD."
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          description: "Internal Server Error — Report generation failed."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              example:
+                message: "Failed to generate audit report"
+
+components:
+  schemas:
+    MessageResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "Operation successful"
+
+  responses:
+    Unauthorized:
+      description: "Unauthorized — No token provided or the token is invalid/expired."
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/MessageResponse"
+          examples:
+            noToken:
+              summary: No token provided
+              value:
+                message: "Unauthorized Access: No Token Provided"
+            invalidToken:
+              summary: Token is invalid or expired
+              value:
+                message: "Unauthorized Access: Invalid Token"
+    Forbidden:
+      description: "Forbidden — Authenticated but the user lacks the required permission."
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/MessageResponse"
+          example:
+            message: "Forbidden: Insufficient permissions"

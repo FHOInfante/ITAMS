@@ -1,0 +1,244 @@
+.app-layout {
+    display: flex;
+    min-height: 100vh;
+    background: #f1f5f9;
+}
+
+/* ─── SIDEBAR ─────────────────────────────────── */
+.sidebar {
+    width: 260px;
+    background: white;
+    border-right: 1px solid #e2e8f0;
+
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    z-index: 100;
+
+    /* slide-in transition for mobile */
+    transition: transform 0.3s ease;
+}
+
+.sidebar-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+
+    padding: 16px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.sidebar-header img {
+    width: 36px;
+    height: 36px;
+}
+
+.nav {
+    padding: 10px;
+    padding-top: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+
+    padding: 10px;
+    border-radius: 8px;
+
+    text-decoration: none;
+    color: #475569;
+    font-size: 14px;
+}
+
+.nav-item:hover {
+    background: #f1f5f9;
+    color: #0f172a;
+}
+
+.nav-item.active {
+    background: #dbeafe;
+    color: #1d4ed8;
+    font-weight: bold;
+}
+
+/* ─── USER ─────────────────────────────────────── */
+.sidebar-user {
+    padding: 12px;
+    border-top: 1px solid #e2e8f0;
+    margin-top: auto;
+}
+
+.sidebar-user p {
+    font-weight: bold;
+    font-size: 14px;
+}
+
+.sidebar-user small {
+    color: #64748b;
+}
+
+.sidebar-user button {
+    margin-top: 10px;
+    width: 100%;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+
+    padding: 8px;
+    border-radius: 8px;
+
+    border: 1px solid #e2e8f0;
+    background: white;
+
+    cursor: pointer;
+}
+
+/* ─── SIDEBAR OVERLAY (mobile) ─────────────────── */
+.sidebar {
+    z-index: 1000; /* change from 100 → 1000 */
+    
+}
+
+.sidebar-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 99;
+}
+
+.sidebar-overlay.active {
+    display: block;
+}
+
+/* ─── MAIN AREA ─────────────────────────────────── */
+.main-content {
+    margin-left: 260px;
+    width: calc(100% - 260px);
+    min-width: 0;
+}
+
+/* ─── TOPBAR ────────────────────────────────────── */
+.topbar {
+    background: transparent;
+    padding: 14px 20px;
+    border-bottom: none;
+    font-weight: bold;
+
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.topbar-header {
+    font-size: 20px;
+    font-weight: 700;
+    color: #0f172a;
+    margin: 0;
+}
+
+/* Hamburger button — hidden on desktop */
+.menu-toggle {
+    display: none;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    color: #475569;
+    flex-shrink: 0;
+}
+
+/* ─── DASHBOARD CONTENT ─────────────────────────── */
+.dashboard-content {
+    padding: 20px;
+}
+
+/* Stats grid — responsive columns */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+}
+
+/* ─── TABLET  (max 1024px) ──────────────────────── */
+@media (max-width: 1024px) {
+    .sidebar {
+        width: 220px;
+    }
+
+    .main-content {
+        margin-left: 220px;
+        width: calc(100% - 220px);
+    }
+}
+
+/* ─── MOBILE  (max 768px) ───────────────────────── */
+@media (max-width: 768px) {
+    /* Sidebar hides off-screen by default */
+    .sidebar {
+        width: 260px;
+        transform: translateX(-100%);
+    }
+
+    /* Sidebar visible when .open is toggled via JS */
+    .sidebar.open {
+        transform: translateX(0);
+    }
+
+    /* Main takes full width */
+    .main-content {
+        margin-left: 0;
+        width: 100%;
+    }
+
+    /* Show hamburger */
+    .menu-toggle {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .topbar-header {
+        font-size: 17px;
+    }
+
+    .dashboard-content {
+        padding: 12px;
+    }
+
+    .stats-grid {
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 12px;
+    }
+
+    .hero-card {
+        flex-direction: column;
+    }
+}
+
+/* ─── SMALL MOBILE  (max 480px) ─────────────────── */
+@media (max-width: 480px) {
+    .stats-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+    }
+
+    .topbar {
+        padding: 12px 14px;
+    }
+
+    .dashboard-content {
+        padding: 10px;
+    }
+}

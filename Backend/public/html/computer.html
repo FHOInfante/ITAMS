@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IT Assets - Laptop / Desktop</title>
+
+    <link rel="stylesheet" href="../css/assetsSharedStyle.css">
+    <link rel="stylesheet" href="../css/computer.css">
+    <link rel="stylesheet" href="../css/sidebar.css">
+
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="icon" type="image/png" href="/assets/itd-logo-tab.png">
+</head>
+<body>
+
+    <!-- Sidebar gets injected here -->
+    <div id="sidebar-container"></div>
+
+    <!-- Main Content -->
+    <main class="main-content">
+
+        <div class="page-header">
+            <h1 id="pageTitle">IT Assets > Laptop > Desktop</h1>
+            <button id="refreshFiltersBtn" class="refresh-btn" title="Clear all filters, sorting, and search">
+                <i data-lucide="refresh-cw"></i>
+                Refresh
+            </button>
+        </div>
+
+        <!-- Summary Cards -->
+        <div class="summary-grid">
+
+            <div class="card status-card" data-status="Active" title="Filter table by Active">
+                <h3>Active</h3>
+                <p id="activeCount">0</p>
+            </div>
+            <div class="card status-card" data-status="Spare" title="Filter table by Spare">
+                <h3>Spare</h3>
+                <p id="spareCount">0</p>
+            </div>
+            <div class="card status-card" data-status="Repair" title="Filter table by Under Repair">
+                <h3>Under Repair</h3>
+                <p id="repairCount">0</p>
+            </div>
+            <div class="card status-card" data-status="Defective" title="Filter table by Defective">
+                <h3>Defective</h3>
+                <p id="defectiveCount">0</p>
+            </div>
+
+        </div>
+
+        <!-- Toolbar -->
+        <div class="toolbar">
+
+            <div class="search-box">
+                <i data-lucide="search"></i>
+                <input
+                    type="text"
+                    id="searchInput"
+                    placeholder="Search asset tag, serial, user..."
+                >
+            </div>
+
+            <div class="toolbar-actions">
+                <div class="col-toggle-wrapper">
+                    <button id="colToggleBtn" class="col-toggle-btn">
+                        <i data-lucide="columns"></i>
+                        Columns
+                    </button>
+                    <div id="colTogglePanel" class="col-toggle-panel hidden">
+                        <div class="col-toggle-header">
+                            <span>Show / Hide Columns</span>
+                            <div class="col-toggle-actions">
+                                <button id="colSelectAll" class="col-link-btn">All</button>
+                                <span class="col-divider">·</span>
+                                <button id="colSelectNone" class="col-link-btn">None</button>
+                                <span class="col-divider">·</span>
+                                <button id="colReset" class="col-link-btn">Reset</button>
+                            </div>
+                        </div>
+                        <div class="col-toggle-body" id="colCheckboxList"></div>
+                    </div>
+                </div>
+                <div id="addAssetBtnContainer">
+                    <button id="addAssetBtn" class="primary">
+                        <i data-lucide="plus"></i>
+                        Add Asset
+                    </button>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Assets Table -->
+        <div class="table-wrapper">
+            <table id="assetTable">
+                <thead>
+                    <tr>
+                        <th data-col="asset_tag">Asset Tag</th>
+                        <th data-col="computer_name">Computer Name</th>
+                        <th data-col="serial_no">Serial No.</th>
+                        <th data-col="brand">Brand</th>
+                        <th data-col="model">Model</th>
+                        <th data-col="device_type">Type</th>
+                        <th data-col="operating_system">OS</th>
+                        <th data-col="computer_status">Status</th>
+                        <th data-col="asset_condition">Condition</th>
+                        <th data-col="assigned_user_name">Assigned User</th>
+                        <th data-col="assigned_user_emp_id">Employee ID</th>
+                        <th data-col="department_name">Department</th>
+                        <th data-col="eu_location">Location</th>
+                        <th data-col="ip_address">IP Address</th>
+                        <th data-col="mac_address">MAC Address</th>
+                        <th data-col="network_connectivity">Network</th>
+                        <th data-col="has_vpn_access">VPN</th>
+                        <th data-col="anyDeskIp">AnyDesk IP</th>
+                        <th data-col="processor">Processor</th>
+                        <th data-col="ram_size">RAM</th>
+                        <th data-col="storage_type">Storage Type</th>
+                        <th data-col="storage_capacity">Storage</th>
+                        <th data-col="received_date">Received</th>
+                        <th data-col="warranty_expiry">Warranty Expiry</th>
+                        <th data-col="assigned_date">Assigned Date</th>
+                        <th data-col="to_return_by">Return By</th>
+                        <th data-col="vendor">Vendor</th>
+                        <th data-col="cost">Cost</th>
+                        <th data-col="peripherals">Peripherals</th>
+                        <th data-col="programs">Programs</th>
+                        <th data-col="remarks">Remarks</th>
+                        <th data-col="action">Action</th>
+                    </tr>
+                </thead>
+                <tbody id="assetTableBody"></tbody>
+            </table>
+        </div>
+
+
+        <!-- ============================================================ -->
+        <!-- ADD ASSET MODAL                                               -->
+        <!-- ============================================================ -->
+        <div id="assetModal" class="modal hidden">
+        <div class="modal-content">
+
+            <!-- Modal Header -->
+            <div class="modal-top">
+                <div class="modal-title-row">
+                    <h2>Add IT Asset</h2>
+                    <button id="closeModal">Close</button>
+                </div>
+                <p class="modal-subtitle">Create a new asset record with its assignment and hardware details.</p>
+            </div>
+
+            <!-- -- Stepper Tabs ----------------------------------------- -->
+            <div class="stepper hidden" id="stepper">
+                <div class="step active" data-step="1">
+                    <span class="step-num">Step 1</span>
+                    <span class="step-label">Basic</span>
+                </div>
+                <div class="step inactive" data-step="2">
+                    <span class="step-num">Step 2</span>
+                    <span class="step-label">Specs</span>
+                </div>
+                <div class="step inactive" data-step="3">
+                    <span class="step-num">Step 3</span>
+                    <span class="step-label">Hardware</span>
+                </div>
+                <div class="step inactive" data-step="4">
+                    <span class="step-num">Step 4</span>
+                    <span class="step-label">Review</span>
+                </div>
+            </div>
+            <!-- -- END Stepper Tabs ------------------------------------- -->
+
+            <div class="step-panel" id="step-type">
+                <p class="section-title">Select Hardware Type</p>
+                <p class="section-desc">Choose the asset category first. The form will show fields tailored to the selected hardware type.</p>
+
+                <div class="type-selection-panel">
+                    <div class="type-grid">
+                        <button type="button" class="type-card-btn" data-type="Computer">
+                            <i data-lucide="monitor"></i>
+                            <span>Computer</span>
+                        </button>
+                        <button type="button" class="type-card-btn" data-type="Printer">
+                            <i data-lucide="printer"></i>
+                            <span>Printer</span>
+                        </button>
+                        <button type="button" class="type-card-btn" data-type="UPS">
+                            <i data-lucide="battery-charging"></i>
+                            <span>UPS</span>
+                        </button>
+                        <button type="button" class="type-card-btn" data-type="Network Device">
+                            <i data-lucide="wifi"></i>
+                            <span>Network Device</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+
+            <!-- ---------------------------------------------------------- -->
+            <!-- STEP 1 — Basic Information                                 -->
+            <!-- ---------------------------------------------------------- -->
+            <div class="step-panel hidden" id="step-1">
+                <p class="section-title">Asset Basics</p>
+                <p class="section-desc">Asset identification and classification.</p>
+
+                <div class="form-grid">
+
+                    <!-- Required fields -->
+                    <div class="section-group-label">Required</div>
+
+                    <div class="form-group">
+                        <label class="form-label">Computer Name <span class="req">*</span></label>
+                        <input type="text" id="computerName" placeholder="e.g. PC-FINANCE-01" required />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Serial Number <span class="req">*</span></label>
+                        <input type="text" id="serialNumber" placeholder="Enter serial number" required />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Brand <span class="req">*</span></label>
+                        <select id="brand" required>
+                            <option value="" disabled selected hidden>Select brand</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Model <span class="req">*</span></label>
+                        <input type="text" id="model" placeholder="e.g. Latitude 5540" required />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Device Type <span class="req">*</span></label>
+                        <select id="deviceType" required>
+                            <option value="" disabled selected hidden>Select type</option>
+                            <option>Laptop</option>
+                            <option>Desktop</option>
+                            <option>Workstation</option>
+                            <option>Server</option>
+                            <option>Thin Client</option>
+                            <option>All-in-One</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Status <span class="req">*</span></label>
+                        <select id="computerStatus" required>
+                            <option value="" disabled selected hidden>Select status</option>
+                            <option>Active</option>
+                            <option>Repair</option>
+                            <option>Spare</option>
+                            <option>Defective</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Asset Condition <span class="req">*</span></label>
+                        <select id="assetCondition" required>
+                            <option>New</option>
+                            <option>Used</option>
+                        </select>
+                    </div>
+
+                    <hr class="form-divider" />
+
+                    <!-- Optional fields -->
+                    <div class="section-group-label">Optional</div>
+
+                    <div class="form-group full">
+                        <label class="form-label">Asset Tag <span class="opt">optional</span></label>
+                        <input type="text" id="assetTag" placeholder="e.g. AST-00142" />
+                    </div>
+
+                </div>
+            </div>
+            <!-- -- END STEP 1 ------------------------------------------ -->
+
+
+            <!-- ---------------------------------------------------------- -->
+            <!-- STEP 2 — System Specifications                              -->
+            <!-- ---------------------------------------------------------- -->
+            <div class="step-panel hidden" id="step-2">
+                <p class="section-title">System Specifications</p>
+                <p class="section-desc">Operating system and hardware specifications.</p>
+
+                <div class="form-grid">
+
+                    <!-- Required fields -->
+                    <div class="section-group-label">Required</div>
+
+                    <div class="form-group">
+                        <label class="form-label">Operating System <span class="req">*</span></label>
+                        <select id="operatingSystem" required>
+                            <option value="" disabled selected hidden>Select OS</option>
+                            <option>Windows 11</option>
+                            <option>Windows 10</option>
+                            <option>Windows Server 2022</option>
+                            <option>Windows Server 2019</option>
+                            <option>macOS</option>
+                            <option>Ubuntu</option>
+                            <option>Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Processor <span class="req">*</span></label>
+                        <input type="text" id="processor" placeholder="e.g. Intel Core i7-12th Gen" required />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">RAM Size <span class="req">*</span></label>
+                        <select id="ramSize" required>
+                            <option value="" disabled selected hidden>Select RAM</option>
+                            <option>2 GB</option>
+                            <option>4 GB</option>
+                            <option>8 GB</option>
+                            <option>16 GB</option>
+                            <option>32 GB</option>
+                            <option>64 GB</option>
+                            <option>128 GB</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Storage Type <span class="req">*</span></label>
+                        <select id="storageType" required>
+                            <option value="" disabled selected hidden>Select type</option>
+                            <option>HDD</option>
+                            <option>SSD</option>
+                            <option>NVMe SSD</option>
+                            <option>eMMC</option>
+                            <option>Hybrid</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Storage Capacity <span class="req">*</span></label>
+                        <select id="storageCapacity" required>
+                            <option value="" disabled selected hidden>Select capacity</option>
+                            <option>128 GB</option>
+                            <option>256 GB</option>
+                            <option>512 GB</option>
+                            <option>1 TB</option>
+                            <option>2 TB</option>
+                            <option>4 TB</option>
+                        </select>
+                    </div>
+
+                </div>
+            </div>
+            <!-- -- END STEP 2 ------------------------------------------ -->
+
+
+            <!-- ---------------------------------------------------------- -->
+            <!-- STEP 3 — Network, Cost & Warranty                          -->
+            <!-- ---------------------------------------------------------- -->
+            <div class="step-panel hidden" id="step-3">
+                <p class="section-title">Network, Cost &amp; Warranty</p>
+                <p class="section-desc">Enter connectivity, cost, and warranty details before review.</p>
+
+                <div class="form-grid">
+
+                    <!-- Required fields -->
+                    <div class="section-group-label">Required</div>
+
+                    <div class="form-group">
+                        <label class="form-label">IP Address <span class="req">*</span></label>
+                        <input type="text" id="ipAddress" placeholder="Enter IP address" required />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">MAC Address <span class="opt">optional</span></label>
+                        <input type="text" id="macAddress" placeholder="Enter MAC address" />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">VPN Access <span class="req">*</span></label>
+                        <select id="hasVpnAccess" required>
+                            <option value="" disabled selected hidden>Select option</option>
+                            <option>Yes</option>
+                            <option>No</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Cost <span class="opt">optional</span></label>
+                        <input type="number" id="cost" placeholder="Enter cost" step="0.01" />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Received Date <span class="req">*</span></label>
+                        <input type="date" id="receivedDate" required />
+                        <span class="date-hint" style="font-size:12px;color:#888;margin-top:4px;display:block;">Cannot be a future date.</span>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Warranty Expiry <span class="opt">optional</span></label>
+                        <input type="date" id="warrantyExpiry" />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Network Connectivity <span class="req">*</span></label>
+                        <select id="networkConnectivity" required>
+                            <option value="" disabled selected hidden>Select connectivity</option>
+                            <option>WIFI</option>
+                            <option>LAN</option>
+                            <option>WIFI & LAN</option>
+                        </select>
+                    </div>
+                    <div class="form-group full">
+                        <label class="form-label">Vendor / Supplier <span class="req">*</span></label>
+                        <div class="searchable-select" id="vendorCombo">
+                            <input type="text" id="vendor" class="combo-input" placeholder="Search or type vendor…" autocomplete="off" required />
+                            <ul class="combo-list hidden"></ul>
+                        </div>
+                        <input type="hidden" id="vendorId" />
+                    </div>
+
+                    <hr class="form-divider" />
+
+                    <!-- Optional fields -->
+                    <div class="section-group-label">Optional</div>
+                    <div class="form-group">
+                        <label class="form-label">AnyDesk IP <span class="opt">optional</span></label>
+                        <input type="text" id="anyDeskIp" placeholder="Enter AnyDesk IP" />
+                    </div>
+
+                    <!-- Remarks spans full width -->
+                    <div class="form-group full">
+                        <label class="form-label">Remarks <span class="opt">optional</span></label>
+                        <textarea id="remarks" placeholder="Enter remarks"></textarea>
+                    </div>
+
+                    <!-- -------------------------------------------------- -->
+                    <!-- Assigned User section                               -->
+                    <!-- -------------------------------------------------- -->
+                    <div class="assign-user-section form-group full">
+                        <div class="section-group-label">Assigned User</div>
+                        <label class="form-label">Will you assign this item to a user? <span class="req">*</span></label>
+                        <div class="radio-group" id="willAssignUserGroup">
+                            <label class="radio-label">
+                                <input type="radio" name="willAssignUser" value="Yes" /> Yes
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="willAssignUser" value="No" checked /> No
+                            </label>
+                        </div>
+
+                        <!-- Hidden until "Yes" is selected -->
+                        <div class="assign-user-fields form-grid" style="display:none;">
+                            <div class="section-group-label">Assigned Employee Details</div>
+
+                            <!-- Search existing end user -->
+                            <div class="form-group full">
+                                <label class="form-label">Search Existing Employee <span class="opt">optional</span></label>
+                                <div class="searchable-select" id="euSearchCombo">
+                                    <input type="text" id="euSearch" class="combo-input" placeholder="Type a name to search existing employees…" autocomplete="off" />
+                                    <ul class="combo-list hidden"></ul>
+                                    <div class="selected-employee-chip hidden" id="euSelectedChip">
+                                        <i data-lucide="user-check" class="chip-user-icon"></i>
+                                        <span class="chip-text" id="euSelectedChipText"></span>
+                                        <button type="button" class="chip-remove-btn" id="euClearSelectionBtn" title="Remove selected employee" aria-label="Remove selected employee">
+                                            <i data-lucide="x" class="chip-remove-icon"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <span style="font-size:11px;color:#94a3b8;margin-top:4px;display:block;" id="euSearchHint">Selecting an existing employee will autofill the fields below and lock them from editing.</span>
+                            </div>
+
+                            <hr class="form-divider" />
+
+                            <div class="form-group">
+                                <label class="form-label">Employee Name <span class="req">*</span></label>
+                                <input type="text" id="euName" placeholder="Enter employee full name" />
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Employee ID <span class="req">*</span></label>
+                                <input type="text" id="euEmpId" placeholder="Enter employee ID" />
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Division <span class="req">*</span></label>
+                                <input type="text" id="euDivision" placeholder="Enter division" autocomplete="off" />
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Department <span class="req">*</span></label>
+                                <div class="searchable-select" id="euDepartmentCombo">
+                                    <input type="text" id="euDepartment" class="combo-input" placeholder="Search or type department…" autocomplete="off" />
+                                    <ul class="combo-list hidden"></ul>
+                                </div>
+                                <input type="hidden" id="euDepartmentId" />
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Location <span class="req">*</span></label>
+                                <div class="searchable-select" id="euLocationCombo">
+                                    <input type="text" id="euLocation" class="combo-input" placeholder="Search or type location…" autocomplete="off" />
+                                    <ul class="combo-list hidden"></ul>
+                                </div>
+                            </div>
+                            <div class="form-group full">
+                                <label class="form-label">Email Address <span class="opt">optional</span></label>
+                                <input type="email" id="euEmail" placeholder="Enter email address" />
+                            </div>
+                            <div class="form-group full">
+                                <label class="form-label">Contact Number <span class="opt">optional</span></label>
+                                <input type="tel" id="euContactNumber" placeholder="09000112233" maxlength="11" />
+                            </div>
+                            <div class="form-group full">
+                                <label class="form-label">Assigned Date <span class="req">*</span></label>
+                                <input type="date" id="assignedDate" />
+                                <span class="date-hint" style="font-size:12px;color:#888;margin-top:4px;display:block;">Cannot be a future date.</span>
+                            </div>
+                            <div class="form-group full">
+                                <label class="form-label">To Return By <span class="opt">optional</span></label>
+                                <input type="date" id="toReturnBy" />
+                                <span class="date-hint" style="font-size:12px;color:#888;margin-top:4px;display:block;">Cannot be a past date.</span>
+                            </div>
+                            <input type="hidden" id="euSelectedId" />
+
+                        </div>
+                    </div>
+                    <!-- -- END Assigned User section -------------------- -->
+
+                    <!-- ------------------------------------------ -->
+                    <!-- Peripherals — always visible in Step 3      -->
+                    <!-- ------------------------------------------ -->
+                    <div class="form-group full">
+                        <label class="form-label">Peripherals <span class="opt">optional</span></label>
+                        <div class="checkbox-group" id="peripheralsCheckboxContainer">
+                            <span style="font-size:13px;color:#aaa;">Loading peripherals…</span>
+                        </div>
+                        <p class="checkbox-hint">Select all peripherals included with this asset.</p>
+                    </div>
+
+                    <!-- ------------------------------------------ -->
+                    <!-- Programs — always visible in Step 3         -->
+                    <!-- ------------------------------------------ -->
+                    <div class="form-group full">
+                        <label class="form-label">Programs <span class="opt">optional</span></label>
+                        <div class="checkbox-group" id="programsCheckboxContainer">
+                            <span style="font-size:13px;color:#aaa;">Loading programs…</span>
+                        </div>
+                        <p class="checkbox-hint">Select all programs installed on this asset.</p>
+                    </div>
+
+                </div>
+            </div>
+            <!-- -- END STEP 3 ------------------------------------------ -->
+
+
+            <!-- ---------------------------------------------------------- -->
+            <!-- STEP 4 — Review                                            -->
+            <!-- ---------------------------------------------------------- -->
+           <div class="step-panel hidden" id="step-4">
+                <p class="section-title">Review Asset Details</p>
+                <p class="section-desc">Review all information before submitting the asset.</p>
+
+                <div class="review-summary-container">
+                    <div class="review-section">    
+                        <div class="section-group-label">Asset Basics</div>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label class="form-label">Computer Name</label>
+                                <span class="review-value" id="revComputerName">—</span>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Serial Number</label>
+                                <span class="review-value" id="revSerialNumber">—</span>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Brand</label>
+                                <span class="review-value" id="revBrand">—</span>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Model</label>
+                                <span class="review-value" id="revModel">—</span>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Device Type</label>
+                                <span class="review-value" id="revDeviceType">—</span>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Status</label>
+                                <span class="review-value" id="revComputerStatus">—</span>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Asset Condition</label>
+                                <span class="review-value" id="revAssetCondition">—</span>
+                            </div>
+                            <div class="form-group full">
+                                <label class="form-label">Asset Tag</label>
+                                <span class="review-value" id="revAssetTag">—</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr class="form-divider" />
+
+                    <div class="review-section">
+                        <div class="section-group-label">System Specifications</div>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label class="form-label">Operating System</label>
+                                <span class="review-value" id="revOperatingSystem">—</span>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Processor</label>
+                                <span class="review-value" id="revProcessor">—</span>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">RAM Size</label>
+                                <span class="review-value" id="revRamSize">—</span>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Storage Type</label>
+                                <span class="review-value" id="revStorageType">—</span>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Storage Capacity</label>
+                                <span class="review-value" id="revStorageCapacity">—</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr class="form-divider" />
+
+                    <div class="review-section">
+                        <div class="section-group-label">Network &amp; Procurement</div>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label class="form-label">IP Address</label>
+                                <span class="review-value" id="revIpAddress">—</span>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">MAC Address</label>
+                                <span class="review-value" id="revMacAddress">—</span>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">VPN Access</label>
+                                <span class="review-value" id="revVpnAccess">—</span>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Cost</label>
+                                <span class="review-value" id="revCost">—</span>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Received Date</label>
+                                <span class="review-value" id="revReceivedDate">—</span>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Warranty Expiry</label>
+                                <span class="review-value" id="revWarrantyExpiry">—</span>
+                            </div>
+                            <div class="form-group full">
+                                <label class="form-label">Vendor / Supplier</label>
+                                <span class="review-value" id="revVendor">—</span>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Network Connectivity</label>
+                                <span class="review-value" id="revNetworkConnectivity">—</span>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">AnyDesk IP</label>
+                                <span class="review-value" id="revAnydeskIp">—</span>
+                            </div>
+                            <div class="form-group full">
+                                <label class="form-label">Remarks</label>
+                                <span class="review-value" id="revRemarks">—</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Assigned Employee Details — shown only when Yes was selected -->
+                    <hr class="form-divider" />
+
+                    <div class="review-section" id="revAssignedSection">
+                        <div class="section-group-label">Assigned Employee Details</div>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label class="form-label">Employee Name</label>
+                                <span class="review-value" id="revEuName">—</span>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Employee ID</label>
+                                <span class="review-value" id="revEuEmpId">—</span>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Division</label>
+                                <span class="review-value" id="revEuDivision">—</span>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Department</label>
+                                <span class="review-value" id="revEuDepartment">—</span>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Location</label>
+                                <span class="review-value" id="revEuLocation">—</span>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Email Address</label>
+                                <span class="review-value" id="revEuEmail">—</span>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Contact Number</label>
+                                <span class="review-value" id="revEuContactNumber">—</span>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Assigned Date</label>
+                                <span class="review-value" id="revAssignedDate">—</span>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">To Return By</label>
+                                <span class="review-value" id="revToReturnBy">—</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr class="form-divider" />
+
+                    <div class="review-section">
+                        <div class="section-group-label">Peripherals</div>
+                        <div class="form-grid">
+                            <div class="form-group full">
+                                <label class="form-label">Peripherals</label>
+                                <span class="review-value" id="revPeripherals">—</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr class="form-divider" />
+
+                    <div class="review-section">
+                        <div class="section-group-label">Programs</div>
+                        <div class="form-grid">
+                            <div class="form-group full">
+                                <label class="form-label">Programs</label>
+                                <span class="review-value" id="revPrograms">—</span>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+            <!-- -- END STEP 4 ------------------------------------------ -->
+
+
+            <!-- Modal Footer — Back / Next buttons -->
+            <div class="modal-footer hidden" id="modalFooter">
+                <button id="cancelModal">Cancel</button>
+                <div class="footer-right">
+                    <button id="backBtn" class="hidden">Back</button>
+                    <button id="nextBtn" class="primary">Next →</button>
+                </div>
+            </div>
+
+        </div>
+        </div>
+        <!-- -- END ADD ASSET MODAL ------------------------------------ -->
+
+    </main>
+
+    <script src="../script/computer.js"></script>
+    <script>
+        lucide.createIcons();
+    </script>
+
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="../script/sidebar.js" defer></script>
+
+
+<!-- Confirmation Dialog -->
+<div id="confirmDialog" class="modal hidden confirm-dialog-overlay">
+    <div class="confirm-dialog">
+        <div class="confirm-dialog-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/>
+            </svg>
+        </div>
+        <div class="confirm-dialog-body">
+            <h3 class="confirm-dialog-title">Confirm Submission</h3>
+            <p class="confirm-dialog-message">Are you sure you want to add this asset record?</p>
+        </div>
+        <div class="confirm-dialog-actions">
+            <button id="confirmCancelBtn" class="confirm-btn confirm-btn-cancel">Cancel</button>
+            <button id="confirmOkBtn" class="confirm-btn confirm-btn-ok">Add Asset</button>
+        </div>
+    </div>
+</div>
+
+<!-- Error Toast -->
+<div id="errorToast" class="error-toast hidden">
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
+    </svg>
+    <span>Something went wrong. Please try again.</span>
+</div>
+
+</body>
+</html>

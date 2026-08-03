@@ -1,0 +1,46 @@
+/* ============================================================
+   softwareItem.css
+   Page-specific overrides for the Software Detail / Edit page
+   (softwareItem.html). Shared design system lives in
+   assetsItemSharedStyle.css — link that FIRST, this SECOND.
+   ============================================================ */
+
+/* ── Status Badge: Software uses its own status vocabulary
+   (active / expired / renewal-due / inactive) instead of the
+   available / assigned / repair / retired set used elsewhere ── */
+.status-badge.active      { background: #dcfce7; color: #15803d; }
+.status-badge.expired     { background: #fee2e2; color: #dc2626; }
+.status-badge.renewal-due { background: #fef9c3; color: #a16207; }
+.status-badge.inactive    { background: #f1f5f9; color: #64748b; }
+
+/* ── Single-column layout (same pattern as computerItem.css) ── */
+.detail-layout {
+    grid-template-columns: 1fr;
+    gap: 0;
+}
+
+/* ── View Mode: Read-only Value Boxes — laid out as a row so a
+   contextual note (e.g. "For Renewal in 12 days") can sit inline
+   next to the value on the summary card ─────────────────────── */
+.view-value {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+}
+
+/* ── Disabled Field (e.g. Expiry Date when License Type is
+   Perpetual, or Auto Renew is checked) ───────────────────────── */
+.form-group input.field-disabled,
+.form-group select.field-disabled {
+    background: #f1f5f9;
+    border-color: #e2e8f0;
+    color: #94a3b8;
+    cursor: not-allowed;
+}
+
+.form-group input.field-disabled:focus,
+.form-group select.field-disabled:focus {
+    border-color: #e2e8f0;
+    box-shadow: none;
+}

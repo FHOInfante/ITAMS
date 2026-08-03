@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Purchase Requests</title>
+
+  <link rel="stylesheet" href="../css/sidebar.css">
+  <link rel="stylesheet" href="../css/shared.css">
+  <link rel="stylesheet" href="../css/purchaseRequest.css">
+
+  <script>
+    if (!localStorage.getItem("token")) { window.location.href = "../index.html"; }
+    const __origFetch = window.fetch;
+    window.fetch = function(u, o) {
+      return __origFetch.call(this, u, o).then(function(r) {
+        if (r.status === 401) { localStorage.clear(); window.location.href = "../index.html"; }
+        return r;
+      });
+    };
+  </script>
+
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="../script/purchaseRequest.js" defer></script>
+</head>
+<body>
+  <div class="app-layout">
+    <div id="sidebarContainer"></div>
+
+    <main class="main-content">
+      <div class="page-heading">
+        <h1 class="page-title">Purchase Requests</h1>
+        <button id="addPurchaseRequestBtn" class="btn-primary" type="button">
+          <i data-lucide="plus"></i>
+          Add Purchase Request
+        </button>
+      </div>
+
+      <div class="page-content">
+        <!-- Toolbar: Audit Log style date filter -->
+        <section class="page-card toolbar-card">
+          <div class="toolbar-row">
+            <div class="search-box">
+              <i data-lucide="search"></i>
+              <input
+                type="text"
+                id="searchInput"
+                placeholder="Search PR number, item, requester, receiver..."
+              >
+            </div>
+            <div class="toolbar-filters">
+              <select id="filterDatePreset" class="toolbar-select">
+                <option value="">All Time</option>
+                <option value="today">Today</option>
+                <option value="7d">Last 7 days</option>
+                <option value="30d">Last 30 days</option>
+                <option value="custom">Custom range…</option>
+              </select>
+              <div id="filterCustomDates" class="custom-dates hidden">
+                <input type="date" id="filterDateFrom" class="toolbar-date-input" />
+                <span class="custom-dates-sep">to</span>
+                <input type="date" id="filterDateTo" class="toolbar-date-input" />
+              </div>
+              <button type="button" id="btnClearFilters" class="btn-secondary" title="Reset all filters">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 2v6h-6"/>
+                  <path d="M3 12a9 9 0 0 1 15-6.7L21 8"/>
+                  <path d="M3 22v-6h6"/>
+                  <path d="M21 12a9 9 0 0 1-15 6.7L3 16"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <section class="page-card table-card">
+          <div class="table-wrapper">
+            <table id="purchaseRequestTable">
+              <thead>
+                  <tr>
+                    <th data-col="prNo"><span class="expand-placeholder-cell"></span>PR Number</th>
+                    <th data-col="prStatus">Status</th>
+                    <th data-col="requestedBy">Requested By</th>
+                    <th data-col="dateRequested" class="sortable-th">Date Requested</th>
+                    <th data-col="dateReceived" class="sortable-th">Date Received</th>
+                    <th data-col="receivedBy">Received By</th>
+                    <th data-col="remarks">Remarks</th>
+                    <th>Actions</th>
+                  </tr>
+              </thead>
+              <tbody id="purchaseRequestTableBody">
+                <tr class="state-row">
+                  <td colspan="8"><div class="spinner"></div>Loading purchase requests…</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+        <div class="pagination" id="paginationBar">
+          <span id="paginationInfo"></span>
+          <div class="pagination-btns" id="paginationBtns"></div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div id="purchaseRequestModal" class="modal hidden" aria-hidden="true">
+    <div class="modal-content purchase-modal-content">
+      <div class="modal-header purchase-modal-header">
+        <div>
+          <h2 id="purchaseRequestModalTitle">Add Purchase Request</h2>
+          <p>Save purchase request details. Cancel closes the form without changing the list.</p>
+        </div>
+        <button id="closePurchaseRequestModal" type="button" class="modal-close-btn">×</button>
+      </div>
+
+      <form id="purchaseRequestForm" class="purchase-form" novalidate>
+        <div class="purchase-form-body">
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="prNo">PR Number <span class="required">*</span></label>
+              <input id="prNo" type="text" inputmode="numeric" placeholder="Enter PR number" maxlength="9" oninput="this.value=this.value.replace(/\D/g,'').slice(0,9)" required>
+              <span class="field-error" id="prNoError">PR Number is required.</span>
+            </div>
+
+            <div class="form-group">
+              <label for="prStatus">Status <span class="required">*</span></label>
+              <select id="prStatus" required>
+                <option value="" disabled hidden>Select status</option>
+                <option>In Process</option>
+                <option>On Hold</option>
+                <option>Partial</option>
+                <option>Received</option>
+                <option>Cancelled</option>
+              </select>
+              <span class="field-error" id="prStatusError">Status is required.</span>
+            </div>
+
+            <div class="form-group">
+              <label for="dateRequested">Date Requested <span class="required">*</span></label>
+              <input id="dateRequested" type="date" required>
+              <span class="field-error" id="dateRequestedError">Date Requested is required.</span>
+            </div>
+
+            <div class="form-group">
+              <label for="requestedBy">Requested By <span class="required">*</span></label>
+              <input id="requestedBy" type="text" placeholder="Enter requester" required>
+              <span class="field-error" id="requestedByError">Requested By is required.</span>
+            </div>
+          </div>
+
+          <div id="receivedDetailsGroup" class="form-grid hidden">
+            <div class="form-group">
+              <label for="dateReceived">Date Received</label>
+              <input id="dateReceived" type="date">
+            </div>
+
+            <div class="form-group">
+              <label for="receivedBy">Received By</label>
+              <input id="receivedBy" type="text" placeholder="Enter receiver">
+            </div>
+          </div>
+
+          <div id="remarksGroup" class="form-group hidden">
+            <label for="remarks">Remarks</label>
+            <textarea id="remarks" rows="3" maxlength="255" placeholder="Enter remarks"></textarea>
+          </div>
+
+          <div class="form-group">
+            <label class="items-section-label">Items</label>
+            <div id="itemsContainer" class="items-container"></div>
+            <div id="addItemPreview" class="item-row add-preview-row" data-preview="true">
+              <div class="if-desc">
+                <input id="previewDesc" type="text" placeholder="Item description" list="itemDescriptionOptions" autocomplete="off">
+              </div>
+              <div class="if-status">
+                <span class="status-display st-in-process">In Process</span>
+              </div>
+              <div class="if-qty">
+                <input id="previewQty" type="number" min="1" value="1">
+              </div>
+              <div class="if-price">
+                <input id="previewPrice" type="number" min="0" step="0.01" value="0">
+              </div>
+              <div class="if-actions">
+                <button type="button" id="addItemBtn" class="add-preview-btn">
+                  <i data-lucide="plus"></i>
+                  Add Item
+                </button>
+              </div>
+            </div>
+            <datalist id="itemDescriptionOptions"></datalist>
+          </div>
+        </div>
+
+        <div class="modal-footer purchase-modal-footer">
+          <button id="cancelPurchaseRequestBtn" type="button" class="btn-secondary">Cancel</button>
+          <button type="submit" class="btn-primary" id="savePurchaseRequestBtn">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/>
+                <path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/>
+                <path d="M7 3v4a1 1 0 0 0 1 1h7"/>
+              </svg>
+              Save Purchase Request</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ── Confirm Receive Modal ──────────────────────────────────────────── -->
+  <div id="confirmReceiveModal" class="modal hidden">
+    <div class="modal-content" style="max-width:400px">
+      <div class="modal-header">
+        <h2>Confirm Receive</h2>
+        <button type="button" class="modal-close-btn" id="closeConfirmReceiveModal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p id="confirmReceiveMessage" style="margin:0 0 20px;font-size:14px;color:#0f172a"></p>
+        <div class="form-actions">
+          <button type="button" class="btn-secondary" id="cancelConfirmReceiveBtn">Cancel</button>
+          <button type="button" class="btn-primary" id="confirmReceiveBtn">Confirm</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Confirm Remove Item Modal ──────────────────────────────────────────── -->
+  <div id="confirmRemoveModal" class="modal hidden">
+    <div class="modal-content" style="max-width:400px">
+      <div class="modal-header">
+        <h2>Confirm Remove</h2>
+        <button type="button" class="modal-close-btn" id="closeConfirmRemoveModal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p id="confirmRemoveMessage" style="margin:0 0 20px;font-size:14px;color:#0f172a"></p>
+        <div class="form-actions">
+          <button type="button" class="btn-secondary" id="cancelConfirmRemoveBtn">Cancel</button>
+          <button type="button" class="btn-primary" id="confirmRemoveBtn">Remove</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Confirm Save Modal ───────────────────────────────────────────────── -->
+  <div id="confirmSaveModal" class="modal hidden">
+    <div class="modal-content confirm-save-content">
+      <div class="modal-header">
+        <h2 id="confirmSaveTitle">Confirm Purchase Request</h2>
+        <button type="button" class="modal-close-btn" id="closeConfirmSaveModal">&times;</button>
+      </div>
+      <div class="modal-body confirm-save-body">
+        <div id="confirmSaveSummary" class="confirm-save-summary"></div>
+        <div id="confirmSaveItemsWrapper" class="confirm-save-items"></div>
+        <div class="form-actions confirm-save-actions">
+          <button type="button" class="btn-secondary" id="cancelConfirmSaveBtn">Cancel</button>
+          <button type="button" class="btn-primary" id="confirmSaveBtn">Confirm & Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Alert Modal ────────────────────────────────────────────────────── -->
+  <div id="alertModal" class="modal hidden">
+    <div class="modal-content alert-modal-content">
+      <div class="modal-body alert-modal-body">
+        <p id="alertModalMessage" class="alert-modal-message"></p>
+        <button id="alertModalOk" class="btn-primary alert-modal-btn">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="../script/sidebar.js" defer></script>
+</body>
+</html>

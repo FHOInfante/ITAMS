@@ -1,0 +1,10 @@
+/* ============================================================
+   upsItem.css
+   Page-specific overrides for the UPS Detail / Edit page
+   (upsItem.html). Shared design system lives in
+   assetsItemSharedStyle.css — link that FIRST, this SECOND.
+
+   No UPS-specific overrides needed at this time — this file
+   is kept as a placeholder so future UPS-only tweaks have a
+   home without touching the shared stylesheet.
+   ============================================================ */

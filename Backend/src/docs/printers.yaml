@@ -1,0 +1,819 @@
+paths:
+  /printer:
+    get:
+      summary: Retrieve all printers
+      description: >
+        Returns a list of all printer records in the system, including the
+        resolved department name from a join on the department table.
+
+
+        Required permission: Authenticated user (bearer token). No specific permission number required for read access.
+      tags:
+        - Printers
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: List of printers retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Printer"
+              examples:
+                success:
+                  summary: Mixed printer records
+                  value:
+                    - printer_id: 1
+                      printer_name: "HP LaserJet - Finance"
+                      department: 3
+                      department_name: "Finance"
+                      asset_tag: "PR-0001"
+                      asset_location: "4F"
+                      serial_no: "SN-PR-001"
+                      brand: "HP"
+                      vendor: "Gilmore Electronics"
+                      model: "LaserJet Pro M404dn"
+                      printer_type: "Laser"
+                      connectivity: "LAN"
+                      ip_address: "192.168.4.50"
+                      mac_address: "AA:BB:CC:DD:EE:AA"
+                      is_color: false
+                      asset_status: "Active"
+                      asset_condition: "New"
+                      received_date: "2023-06-01"
+                      warranty_expiry: "2026-06-01"
+                      date_deployed: "2023-06-05"
+                      cost: 25000.00
+                      remarks: null
+                    - printer_id: 2
+                      printer_name: null
+                      department: 5
+                      department_name: "Nursing"
+                      asset_tag: null
+                      asset_location: "2F"
+                      serial_no: "SN-PR-099"
+                      brand: "Brother"
+                      vendor: "DataServ"
+                      model: "DCP-T710W"
+                      printer_type: "Inkjet"
+                      connectivity: "USB"
+                      ip_address: null
+                      mac_address: null
+                      is_color: false
+                      asset_status: "Defective"
+                      asset_condition: "Used"
+                      received_date: "2020-08-01"
+                      warranty_expiry: "2023-08-01"
+                      date_deployed: null
+                      cost: null
+                      remarks: "Print head failure. For disposal."
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+    post:
+      summary: Add a new printer
+      description: >
+        Creates a new printer record.
+
+
+        **Required Permission: 11 (Add Asset - Printer)** — Accessible by: '**IT Manager**', '**IT Supervisor**', and '**IT Helpdesk**'
+
+
+        **Required fields:** department, serialNo, brand, vendor,
+        model, printerType, connectivity, assetStatus, receivedDate.
+
+
+        **Note:** warrantyExpiry is optional and defaults to null if omitted,
+        despite resembling a required field in earlier documentation drafts.
+
+
+        **ENUMs:**
+
+        - assetLocation (optional): **B2, B1, GF, 2F, 3F, 4F, 5F, 6F, 7F, 8F, PO**
+
+        - connectivity: **USB, LAN, WIFI, LAN & WIFI**
+
+        - assetStatus: **Active, Repair, Spare, Defective**
+
+        - assetCondition: **New, Used** — defaults to **New** if omitted
+
+
+        **Notes:** department must be a valid **department_id** integer from the
+        department table. isColor defaults to **false** if omitted or if a
+        non-boolean value is provided.
+      tags:
+        - Printers
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PrinterBody"
+            examples:
+              minimalUsb:
+                summary: Required fields only — USB printer (assetLocation omitted)
+                value:
+                  department: 2
+                  serialNo: "SN-PR-010"
+                  brand: "Epson"
+                  vendor: "Gilmore Electronics"
+                  model: "L3210"
+                  printerType: "Inkjet"
+                  connectivity: "USB"
+                  assetStatus: "Spare"
+                  receivedDate: "2024-01-10"
+                  warrantyExpiry: "2026-01-10"
+              fullLanColor:
+                summary: All fields — LAN color printer
+                value:
+                  printerName: "Color Printer - HR"
+                  department: 4
+                  assetTag: "PR-0015"
+                  assetLocation: "5F"
+                  serialNo: "SN-PR-015"
+                  brand: "Canon"
+                  vendor: "DataServ"
+                  model: "PIXMA G3010"
+                  printerType: "Inkjet"
+                  connectivity: "LAN"
+                  ipAddress: "192.168.5.60"
+                  macAddress: "AA:BB:CC:DD:EE:BB"
+                  isColor: true
+                  assetStatus: "Active"
+                  assetCondition: "New"
+                  receivedDate: "2024-02-01"
+                  warrantyExpiry: "2027-02-01"
+                  dateDeployed: "2024-02-05"
+                  cost: 18000.00
+                  remarks: "Shared printer for HR and Admin"
+              wifiMultifunction:
+                summary: WIFI multifunction printer
+                value:
+                  printerName: "MFP - Executive Floor"
+                  department: 1
+                  assetLocation: "8F"
+                  serialNo: "SN-MFP-003"
+                  brand: "Ricoh"
+                  vendor: "Ricoh Philippines"
+                  model: "IM 2702"
+                  printerType: "Multifunction"
+                  connectivity: "LAN & WIFI"
+                  ipAddress: "192.168.8.10"
+                  isColor: false
+                  assetStatus: "Active"
+                  assetCondition: "New"
+                  receivedDate: "2024-05-01"
+                  warrantyExpiry: "2027-05-01"
+              defectiveUsed:
+                summary: Defective used printer
+                value:
+                  department: 5
+                  assetLocation: "2F"
+                  serialNo: "SN-PR-099"
+                  brand: "Brother"
+                  vendor: "DataServ"
+                  model: "DCP-T710W"
+                  printerType: "Inkjet"
+                  connectivity: "WIFI"
+                  assetStatus: "Defective"
+                  assetCondition: "Used"
+                  receivedDate: "2020-08-01"
+                  warrantyExpiry: "2023-08-01"
+                  remarks: "Print head failure. For disposal."
+      responses:
+        "201":
+          description: Printer added successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              examples:
+                success:
+                  summary: Created
+                  value:
+                    message: "Printer added successfully"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              examples:
+                missingFields:
+                  summary: Missing required fields
+                  value:
+                    message: "Missing required fields"
+                invalidDepartment:
+                  summary: department is not a positive integer
+                  value:
+                    message: "Invalid department value"
+                invalidStatus:
+                  summary: Invalid asset status
+                  value:
+                    message: "Invalid asset status value"
+                invalidConnectivity:
+                  summary: Invalid connectivity value
+                  value:
+                    message: "Invalid connectivity value"
+                invalidLocation:
+                  summary: Invalid asset location
+                  value:
+                    message: "Invalid asset location value"
+                invalidCondition:
+                  summary: Invalid asset condition
+                  value:
+                    message: "Invalid asset condition value"
+                invalidCost:
+                  summary: cost is negative or not a number
+                  value:
+                    message: "Invalid cost value"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  "/printer/:id":
+    get:
+      summary: Retrieve a printer by ID
+      description: >
+        Returns a single printer record by its ID, including the resolved
+        department name.
+
+
+        Required permission: Authenticated user (bearer token). No specific permission number required for read access.
+      tags:
+        - Printers
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The printer ID
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "200":
+          description: Printer retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Printer"
+              examples:
+                active:
+                  summary: Active LAN printer
+                  value:
+                    printer_id: 1
+                    printer_name: "HP LaserJet - Finance"
+                    department: 3
+                    department_name: "Finance"
+                    asset_tag: "PR-0001"
+                    asset_location: "4F"
+                    serial_no: "SN-PR-001"
+                    brand: "HP"
+                    vendor: "Gilmore Electronics"
+                    model: "LaserJet Pro M404dn"
+                    printer_type: "Laser"
+                    connectivity: "LAN"
+                    ip_address: "192.168.4.50"
+                    mac_address: "AA:BB:CC:DD:EE:AA"
+                    is_color: false
+                    asset_status: "Active"
+                    asset_condition: "New"
+                    received_date: "2023-06-01"
+                    warranty_expiry: "2026-06-01"
+                    date_deployed: "2023-06-05"
+                    cost: 25000.00
+                    remarks: null
+                spare:
+                  summary: Spare USB printer with nullable fields null
+                  value:
+                    printer_id: 3
+                    printer_name: null
+                    department: 2
+                    department_name: "Radiology"
+                    asset_tag: null
+                    asset_location: "3F"
+                    serial_no: "SN-PR-010"
+                    brand: "Epson"
+                    vendor: "Gilmore Electronics"
+                    model: "L3210"
+                    printer_type: "Inkjet"
+                    connectivity: "USB"
+                    ip_address: null
+                    mac_address: null
+                    is_color: false
+                    asset_status: "Spare"
+                    asset_condition: "New"
+                    received_date: "2024-01-10"
+                    warranty_expiry: "2026-01-10"
+                    date_deployed: null
+                    cost: null
+                    remarks: null
+        "400":
+          description: Missing or invalid printer ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              examples:
+                missingId:
+                  summary: Missing ID
+                  value:
+                    message: "Missing printer ID"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          description: Not Found — Printer not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              examples:
+                notFound:
+                  summary: Not found
+                  value:
+                    message: "Printer not found"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+    put:
+      summary: Update a printer
+      description: >
+        Fully updates an existing printer record. All required fields must be
+        supplied; omitted optional fields are set to null.
+
+
+        **Required Permission: 26 (Edit Asset - Printer)** — Accessible by: '**IT Manager**' and '**IT Supervisor**'
+
+
+        **Required fields:** department, serialNo, brand, vendor,
+        model, printerType, connectivity, assetStatus, receivedDate.
+
+
+        **Note:** warrantyExpiry is optional and defaults to null if omitted,
+        despite resembling a required field in earlier documentation drafts.
+
+
+        **ENUMs:**
+
+        - assetLocation (optional): **B2, B1, GF, 2F, 3F, 4F, 5F, 6F, 7F, 8F, PO**
+
+        - connectivity: **USB, LAN, WIFI, LAN & WIFI**
+
+        - assetStatus: **Active, Repair, Spare, Defective**
+
+        - assetCondition: **New, Used** — defaults to **New** if omitted
+      tags:
+        - Printers
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The printer ID
+          schema:
+            type: integer
+            minimum: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PrinterBody"
+            examples:
+              statusToRepair:
+                summary: Mark as Repair and add remark
+                value:
+                  department: 3
+                  assetLocation: "4F"
+                  serialNo: "SN-PR-001"
+                  brand: "HP"
+                  vendor: "Gilmore Electronics"
+                  model: "LaserJet Pro M404dn"
+                  printerType: "Laser"
+                  connectivity: "LAN"
+                  assetStatus: "Repair"
+                  assetCondition: "Used"
+                  receivedDate: "2023-06-01"
+                  warrantyExpiry: "2026-06-01"
+                  remarks: "Paper jam issue. Sent to HP service."
+              changeDepartment:
+                summary: Reassign to a different department
+                value:
+                  department: 6
+                  assetLocation: "6F"
+                  serialNo: "SN-PR-001"
+                  brand: "HP"
+                  vendor: "Gilmore Electronics"
+                  model: "LaserJet Pro M404dn"
+                  printerType: "Laser"
+                  connectivity: "LAN"
+                  ipAddress: "192.168.6.50"
+                  assetStatus: "Active"
+                  assetCondition: "Used"
+                  receivedDate: "2023-06-01"
+                  warrantyExpiry: "2026-06-01"
+      responses:
+        "200":
+          description: Printer updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              examples:
+                success:
+                  summary: Updated
+                  value:
+                    message: "Printer updated successfully"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              examples:
+                missingId:
+                  summary: Missing printer ID
+                  value:
+                    message: "Missing printer ID"
+                missingFields:
+                  summary: Missing required fields
+                  value:
+                    message: "Missing required fields"
+                invalidDepartment:
+                  summary: department is not a positive integer
+                  value:
+                    message: "Invalid department value"
+                invalidStatus:
+                  summary: Invalid asset status
+                  value:
+                    message: "Invalid asset status value"
+                invalidConnectivity:
+                  summary: Invalid connectivity value
+                  value:
+                    message: "Invalid connectivity value"
+                invalidLocation:
+                  summary: Invalid asset location
+                  value:
+                    message: "Invalid asset location value"
+                invalidCondition:
+                  summary: Invalid asset condition
+                  value:
+                    message: "Invalid asset condition value"
+                invalidCost:
+                  summary: cost is negative or not a number
+                  value:
+                    message: "Invalid cost value"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          description: Not Found — Printer not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              examples:
+                notFound:
+                  summary: Not found
+                  value:
+                    message: "Printer not found"
+        "500":
+          $ref: "#/components/responses/InternalError"
+  "/printer/:id/network":
+    patch:
+      summary: Update printer network info
+      description: >
+        Partially updates a printer's connectivity type and IP address without
+        touching any other fields.
+
+
+        **Required Permission: 30 (Edit Asset - Printer (Network Fields))** — Accessible by: '**IT Manager**', '**IT Supervisor**', and '**Network Admin**'
+
+
+        **Required fields:** connectivity.
+
+
+        **ENUMs:**
+
+        - connectivity: **USB, LAN, WIFI, LAN & WIFI**
+
+
+        **Note:** If connectivity is set to **USB**, ipAddress is automatically
+        cleared to null regardless of the value provided, since USB printers do
+        not use IP addresses.
+      tags:
+        - Printers
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The printer ID
+          schema:
+            type: integer
+            minimum: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PrinterPatchBody"
+            examples:
+              switchToLan:
+                summary: Assign LAN connectivity with IP
+                value:
+                  connectivity: "LAN"
+                  ipAddress: "192.168.5.55"
+              switchToUsb:
+                summary: Change to USB — IP will be cleared automatically
+                value:
+                  connectivity: "USB"
+              switchToWifi:
+                summary: Switch to WIFI with IP
+                value:
+                  connectivity: "WIFI"
+                  ipAddress: "192.168.5.60"
+              dualConnectivity:
+                summary: LAN & WIFI dual connectivity
+                value:
+                  connectivity: "LAN & WIFI"
+                  ipAddress: "192.168.5.61"
+      responses:
+        "200":
+          description: Printer network info updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              examples:
+                success:
+                  summary: Updated
+                  value:
+                    message: "Printer network info updated successfully"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              examples:
+                missingId:
+                  summary: Missing printer ID
+                  value:
+                    message: "Missing printer ID"
+                missingConnectivity:
+                  summary: connectivity field absent
+                  value:
+                    message: "Missing required fields"
+                invalidConnectivity:
+                  summary: Invalid connectivity value
+                  value:
+                    message: "Invalid connectivity value"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          description: Not Found — Printer not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              examples:
+                notFound:
+                  summary: Not found
+                  value:
+                    message: "Printer not found"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+components:
+  schemas:
+    Printer:
+      type: object
+      properties:
+        printer_id:
+          type: integer
+          example: 1
+        printer_name:
+          type: string
+          nullable: true
+          example: "HP LaserJet - Finance"
+        department:
+          type: integer
+          description: Foreign key to the department table.
+          example: 3
+        department_name:
+          type: string
+          description: Resolved department name from the department table join.
+          example: "Finance"
+        asset_tag:
+          type: string
+          nullable: true
+          example: "PR-0001"
+        asset_location:
+          type: string
+          nullable: true
+          enum: [B2, B1, GF, 2F, 3F, 4F, 5F, 6F, 7F, 8F, PO]
+          example: "4F"
+        serial_no:
+          type: string
+          example: "SN-PR-001"
+        brand:
+          type: string
+          example: "HP"
+        vendor:
+          type: string
+          example: "Gilmore Electronics"
+        model:
+          type: string
+          example: "LaserJet Pro M404dn"
+        printer_type:
+          type: string
+          example: "Laser"
+        connectivity:
+          type: string
+          enum: [USB, LAN, WIFI, "LAN & WIFI"]
+          example: "LAN"
+        ip_address:
+          type: string
+          nullable: true
+          example: "192.168.4.50"
+        mac_address:
+          type: string
+          nullable: true
+          example: "AA:BB:CC:DD:EE:AA"
+        is_color:
+          type: boolean
+          example: false
+        asset_status:
+          type: string
+          enum: [Active, Repair, Spare, Defective]
+          example: "Active"
+        asset_condition:
+          type: string
+          enum: [New, Used]
+          example: "New"
+        received_date:
+          type: string
+          format: date
+          example: "2023-06-01"
+        warranty_expiry:
+          type: string
+          format: date
+          nullable: true
+          example: "2026-06-01"
+        date_deployed:
+          type: string
+          format: date
+          nullable: true
+          example: "2023-06-05"
+        cost:
+          type: number
+          format: decimal
+          nullable: true
+          minimum: 0
+          example: 25000.00
+        remarks:
+          type: string
+          nullable: true
+          example: null
+
+    PrinterBody:
+      type: object
+      required:
+        - department
+        - serialNo
+        - brand
+        - vendor
+        - model
+        - printerType
+        - connectivity
+        - assetStatus
+        - receivedDate
+      properties:
+        printerName:
+          type: string
+          nullable: true
+          example: "HP LaserJet - Finance"
+        department:
+          type: integer
+          minimum: 1
+          description: Foreign key referencing department.department_id. Must be a valid existing department.
+          example: 3
+        assetTag:
+          type: string
+          nullable: true
+          example: "PR-0001"
+        assetLocation:
+          type: string
+          nullable: true
+          enum: [B2, B1, GF, 2F, 3F, 4F, 5F, 6F, 7F, 8F, PO]
+          example: "4F"
+        serialNo:
+          type: string
+          example: "SN-PR-001"
+        brand:
+          type: string
+          example: "HP"
+        vendor:
+          type: string
+          example: "Gilmore Electronics"
+        model:
+          type: string
+          example: "LaserJet Pro M404dn"
+        printerType:
+          type: string
+          example: "Laser"
+        connectivity:
+          type: string
+          enum: [USB, LAN, WIFI, "LAN & WIFI"]
+          example: "LAN"
+        ipAddress:
+          type: string
+          nullable: true
+          description: Not applicable for USB-only printers.
+          example: "192.168.4.50"
+        macAddress:
+          type: string
+          nullable: true
+          example: "AA:BB:CC:DD:EE:AA"
+        isColor:
+          type: boolean
+          description: Defaults to false if omitted or if a non-boolean is provided.
+          example: false
+        assetStatus:
+          type: string
+          enum: [Active, Repair, Spare, Defective]
+          example: "Active"
+        assetCondition:
+          type: string
+          enum: [New, Used]
+          description: Defaults to New if omitted.
+          example: "New"
+        receivedDate:
+          type: string
+          format: date
+          example: "2023-06-01"
+        warrantyExpiry:
+          type: string
+          format: date
+          nullable: true
+          description: Optional. Defaults to null if omitted.
+          example: "2026-06-01"
+        dateDeployed:
+          type: string
+          format: date
+          nullable: true
+          example: "2023-06-05"
+        cost:
+          type: number
+          format: decimal
+          nullable: true
+          minimum: 0
+          example: 25000.00
+        remarks:
+          type: string
+          nullable: true
+          example: null
+
+    PrinterPatchBody:
+      type: object
+      required:
+        - connectivity
+      properties:
+        connectivity:
+          type: string
+          enum: [USB, LAN, WIFI, "LAN & WIFI"]
+          description: New connectivity type. Setting to USB automatically clears ipAddress.
+          example: "LAN"
+        ipAddress:
+          type: string
+          nullable: true
+          description: New IP address. Automatically set to null when connectivity is USB.
+          example: "192.168.5.55"
+
+    MessageResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "Operation successful"

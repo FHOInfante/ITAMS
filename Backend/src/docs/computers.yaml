@@ -1,0 +1,1555 @@
+paths:
+  /computer:
+    get:
+      tags:
+        - Computers
+      summary: Get all computers
+      description: >
+        Returns a list of all computer asset records including linked peripherals, linked
+        pre-installed programs, and assigned end user.
+
+
+        Required permission: Authenticated user (bearer token). No specific permission number required for read access.
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: List of all computer records.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ComputerObject"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+    post:
+      tags:
+        - Computers
+      summary: Add a new computer
+      description: >
+        Creates a new computer asset record.
+
+
+        **Required Permission: 9 (Add Asset - Computer)** — Accessible by: '**IT Manager**', '**IT Supervisor**', and '**IT Helpdesk**'
+
+
+        Required Fields: **computerName**, **serialNo**, **model**, **brand**, **deviceType**, **operatingSystem**, 
+        **computerStatus**, **receivedDate**, **vendor**, **processor**, **ramSize**, 
+        **storageType**, **storageCapacity**, **ipAddress**, **networkConnectivity**
+
+
+        Note: **warrantyExpiry** and **macAddress** are optional — the controller does not enforce them
+        as required even though they appear required-sounding; both fall back to null if omitted.
+
+
+        Valid Options (networkConnectivity): "WIFI", "LAN", or "WIFI & LAN"
+
+
+        **Peripherals:** Supply an optional peripherals array to link existing peripheral records.
+        Each entry is looked up by peripheral_name or peripheral_id. Returns 404 if any
+        referenced peripheral does not exist.
+
+
+        **Programs:** Supply an optional programs array to link existing pre-installed program
+        records. Each entry is looked up by program_name or program_id. Returns 404 if any
+        referenced program does not exist.
+
+
+        **End-user assignment:** Provide euEmpId and assignedDate to assign the computer on creation.
+        If the end user (by euEmpId) does not yet exist, also supply euName, euDivision,
+        euDepartment, and euLocation to auto-register them.
+        Assignment is blocked if the end user has a Resigned status.
+
+
+        **Important:** If euEmpId already belongs to an existing end user, any euName, euDivision,
+        euDepartment, euLocation, euEmail, or euContactNo also included in the payload are silently
+        ignored. Only euEmpId and assignedDate are used in that case — the existing end user's
+        stored details are never overwritten as a side effect of an asset assignment. Those fields
+        are consulted only when euEmpId does not yet correspond to any registered end user.
+
+
+        **euDepartment** (used when auto-registering a new end user) accepts three formats:
+
+        - **Integer** — resolved directly as a department ID. Example: 13
+
+        - **Numeric string** — parsed and resolved as a department ID. Example: "13"
+
+        - **Name string** — resolved by a case-insensitive name match. Example: "it department"
+
+        - Returns 404 if the referenced department does not exist.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ComputerWriteRequest"
+            examples:
+              minimal:
+                summary: "Minimal — Required fields only, no assignment"
+                value:
+                  computerName: "PC-HQ-001"
+                  serialNo: "SN123456789"
+                  model: "EliteDesk 800 G5"
+                  brand: "HP"
+                  deviceType: "Desktop"
+                  operatingSystem: "Windows 11 Pro"
+                  computerStatus: "Spare"
+                  receivedDate: "2023-01-15"
+                  warrantyExpiry: "2026-01-15"
+                  vendor: "Global Tech Supply"
+                  processor: "Intel Core i7-9700"
+                  ramSize: "16GB"
+                  storageType: "SSD"
+                  storageCapacity: "512GB"
+                  ipAddress: "192.168.1.101"
+                  macAddress: "AA:BB:CC:DD:EE:FF"
+                  networkConnectivity: "LAN"
+              withOptionalFields:
+                summary: "With optional hardware fields and one peripheral"
+                value:
+                  computerName: "LAPTOP-IT-005"
+                  assetTag: "TMCSL-LT-005"
+                  serialNo: "SN-LT-20240105"
+                  model: "ThinkPad E14"
+                  brand: "Lenovo"
+                  deviceType: "Laptop"
+                  operatingSystem: "Windows 11 Pro"
+                  computerStatus: "Active"
+                  assetCondition: "New"
+                  receivedDate: "2024-01-05"
+                  warrantyExpiry: "2027-01-05"
+                  vendor: "Lenovo Philippines"
+                  processor: "AMD Ryzen 5 5600U"
+                  ramSize: "8GB"
+                  storageType: "NVMe"
+                  storageCapacity: "256GB"
+                  ipAddress: "192.168.2.50"
+                  macAddress: "BB:CC:DD:EE:FF:10"
+                  networkConnectivity: "WIFI & LAN"
+                  hasVpnAccess: true
+                  anyDeskIp: "112233445"
+                  toReturnBy: "2025-06-30"
+                  remarks: "Issued to IT intern."
+                  cost: 38000.00
+                  peripherals:
+                    - peripheral_name: "Mouse"
+                  programs:
+                    - program_name: "Microsoft Office"
+                    - program_name: "Google Chrome"
+              withExistingEndUser:
+                summary: "Assign to an existing end user on creation"
+                value:
+                  computerName: "PC-BILLING-001"
+                  serialNo: "SN-BILL-001"
+                  model: "EliteDesk 800 G5"
+                  brand: "HP"
+                  deviceType: "Desktop"
+                  operatingSystem: "Windows 11 Pro"
+                  computerStatus: "Active"
+                  assetCondition: "Used"
+                  receivedDate: "2022-03-10"
+                  warrantyExpiry: "2025-03-10"
+                  vendor: "Global Tech Supply"
+                  processor: "Intel Core i5-9500"
+                  ramSize: "8GB"
+                  storageType: "HDD"
+                  storageCapacity: "1TB"
+                  ipAddress: "192.168.3.20"
+                  macAddress: "DD:EE:FF:00:11:22"
+                  networkConnectivity: "LAN"
+                  cost: 28000.00
+                  peripherals:
+                    - peripheral_name: "Mouse"
+                    - peripheral_name: "Keyboard"
+                    - peripheral_name: "Monitor"
+                  euEmpId: 20045
+                  assignedDate: "2023-02-01"
+              withNewEndUserIntDepartment:
+                summary: "Auto-register new end user — euDepartment as integer ID"
+                value:
+                  computerName: "PC-ADMIN-007"
+                  serialNo: "SN-ADM-007"
+                  model: "EliteDesk 800 G5"
+                  brand: "HP"
+                  deviceType: "Desktop"
+                  operatingSystem: "Windows 11 Pro"
+                  computerStatus: "Active"
+                  receivedDate: "2023-01-15"
+                  warrantyExpiry: "2026-01-15"
+                  vendor: "Global Tech Supply"
+                  processor: "Intel Core i7-9700"
+                  ramSize: "16GB"
+                  storageType: "SSD"
+                  storageCapacity: "512GB"
+                  ipAddress: "192.168.1.115"
+                  macAddress: "EE:FF:00:11:22:33"
+                  networkConnectivity: "LAN"
+                  cost: 45000.00
+                  euEmpId: 20099
+                  assignedDate: "2023-02-15"
+                  euName: "Pedro Reyes"
+                  euDivision: "Accounting"
+                  euDepartment: 4
+                  euLocation: "5F"
+                  euEmail: "pedro.reyes@hospital.com"
+                  euContactNo: "09181234567"
+              withNewEndUserStringDepartmentName:
+                summary: "Auto-register new end user — euDepartment as name string (case-insensitive)"
+                value:
+                  computerName: "PC-ADMIN-008"
+                  serialNo: "SN-ADM-008"
+                  model: "EliteDesk 800 G5"
+                  brand: "HP"
+                  deviceType: "Desktop"
+                  operatingSystem: "Windows 11 Pro"
+                  computerStatus: "Active"
+                  receivedDate: "2023-01-15"
+                  warrantyExpiry: "2026-01-15"
+                  vendor: "Global Tech Supply"
+                  processor: "Intel Core i7-9700"
+                  ramSize: "16GB"
+                  storageType: "SSD"
+                  storageCapacity: "512GB"
+                  ipAddress: "192.168.1.116"
+                  macAddress: "EE:FF:00:11:22:44"
+                  networkConnectivity: "LAN"
+                  cost: 45000.00
+                  euEmpId: 20100
+                  assignedDate: "2023-02-15"
+                  euName: "Rosa Manalo"
+                  euDivision: "Accounting"
+                  euDepartment: "accounting department"
+                  euLocation: "5F"
+              withNewEndUserNumericStringDepartment:
+                summary: "Auto-register new end user — euDepartment as numeric string (treated as ID)"
+                value:
+                  computerName: "PC-ADMIN-009"
+                  serialNo: "SN-ADM-009"
+                  model: "EliteDesk 800 G5"
+                  brand: "HP"
+                  deviceType: "Desktop"
+                  operatingSystem: "Windows 11 Pro"
+                  computerStatus: "Active"
+                  receivedDate: "2023-01-15"
+                  warrantyExpiry: "2026-01-15"
+                  vendor: "Global Tech Supply"
+                  processor: "Intel Core i7-9700"
+                  ramSize: "16GB"
+                  storageType: "SSD"
+                  storageCapacity: "512GB"
+                  ipAddress: "192.168.1.117"
+                  macAddress: "EE:FF:00:11:22:55"
+                  networkConnectivity: "LAN"
+                  cost: 45000.00
+                  euEmpId: 20101
+                  assignedDate: "2023-02-15"
+                  euName: "Carlo Bautista"
+                  euDivision: "Accounting"
+                  euDepartment: "4"
+                  euLocation: "5F"
+              withPrograms:
+                summary: "With pre-installed programs — mixing program_name and program_id"
+                value:
+                  computerName: "PC-NURSE-012"
+                  serialNo: "SN-NUR-012"
+                  model: "EliteDesk 800 G5"
+                  brand: "HP"
+                  deviceType: "Desktop"
+                  operatingSystem: "Windows 11 Pro"
+                  computerStatus: "Active"
+                  receivedDate: "2024-02-01"
+                  warrantyExpiry: "2027-02-01"
+                  vendor: "Global Tech Supply"
+                  processor: "Intel Core i5-9500"
+                  ramSize: "8GB"
+                  storageType: "SSD"
+                  storageCapacity: "256GB"
+                  ipAddress: "192.168.4.30"
+                  macAddress: "FF:00:11:22:33:44"
+                  networkConnectivity: "LAN"
+                  cost: 32000.00
+                  programs:
+                    - program_name: "Microsoft Office"
+                    - program_id: 2
+      responses:
+        "201":
+          description: Computer record created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              example:
+                message: "Computer added successfully"
+        "400":
+          description: >
+            Bad Request — Missing required fields, Invalid ENUM value for computerStatus,
+            assetCondition, or networkConnectivity; Invalid peripherals array structure;
+            Invalid programs array structure; missing assignedDate when euEmpId is provided;
+            Missing end user registration fields when the end user does not exist; Invalid
+            euLocation; Invalid euDepartment value (e.g. zero or negative integer); or
+            attempting to assign to a Resigned end user.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              examples:
+                "Missing Fields":
+                  value:
+                    message: "Missing required fields"
+                "Invalid computerStatus":
+                  value:
+                    message: "Invalid computer status value"
+                "Invalid assetCondition":
+                  value:
+                    message: "Invalid asset condition value"
+                "Invalid networkConnectivity":
+                  value:
+                    message: "Invalid network connectivity value"
+                "Peripherals Not Array":
+                  value:
+                    message: "Peripherals must be an array"
+                "Peripheral Entry Not Object":
+                  value:
+                    message: "Each peripheral entry must be an object"
+                "Peripheral Entry Missing Key":
+                  value:
+                    message: "Each peripheral entry must have at least peripheral_id or peripheral_name"
+                "Programs Not Array":
+                  value:
+                    message: "Programs must be an array"
+                "Program Entry Not Object":
+                  value:
+                    message: "Each program entry must be an object"
+                "Program Entry Missing Key":
+                  value:
+                    message: "Each program entry must have at least program_id or program_name"
+                "End User Not Found Missing Fields":
+                  value:
+                    message: "End user not found. Please provide euName, euDivision, euDepartment, and euLocation to register them."
+                "Invalid euLocation":
+                  value:
+                    message: "Invalid location value"
+                "Invalid euDepartment Value":
+                  summary: euDepartment is an invalid type or value (e.g. 0 or negative integer)
+                  value:
+                    message: "Invalid euDepartment value"
+                "Resigned End User":
+                  summary: The end user is Resigned and cannot be assigned assets
+                  value:
+                    message: "Cannot assign assets to a Resigned end user"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          description: >
+            Not Found — One or more referenced peripherals do not exist, one or more
+            referenced programs do not exist, or the referenced department (by integer ID,
+            numeric string ID, or name string) does not exist.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              examples:
+                "Peripheral By Name Not Found":
+                  value:
+                    message: 'Peripherals not found: name:"Webcam"'
+                "Peripheral By Id Not Found":
+                  value:
+                    message: "Peripherals not found: ID:99"
+                "Program By Name Not Found":
+                  value:
+                    message: 'Programs not found: name:"AutoCAD"'
+                "Program By Id Not Found":
+                  value:
+                    message: "Programs not found: ID:99"
+                "euDepartment Not Found":
+                  value:
+                    message: "Department not found"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  "/computer/:id":
+    get:
+      tags:
+        - Computers
+      summary: Get a single computer by ID
+      description: >
+        Returns the full details of a specific computer asset including linked peripherals,
+        linked pre-installed programs, and assigned end user.
+
+
+        Required permission: Authenticated user (bearer token). No specific permission number required for read access.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: "**[REQUIRED]** The computer_id of the target record."
+          schema:
+            type: integer
+          example: 1
+      responses:
+        "200":
+          description: Computer record found and returned.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ComputerObject"
+        "400":
+          description: "Bad Request — id is missing or not a valid integer."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              example:
+                message: "Missing computer ID"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          description: >
+            Not Found — The computer does not exist.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              examples:
+                "Computer Not Found":
+                  value:
+                    message: "Computer not found"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+    put:
+      tags:
+        - Computers
+      summary: Edit / fully update a computer record
+      description: >
+        Performs a full update of an existing computer asset record. All required fields must be supplied.
+
+
+        **Required Permission: 24 (Edit Asset - Computer)** — Accessible by: '**IT Manager**' and '**IT Supervisor**'
+
+
+        **Peripherals:** The peripherals array fully replaces all current associations.
+        Send an empty array or omit to clear all.
+
+
+        **Programs:** The programs array fully replaces all current associations.
+        Send an empty array or omit to clear all.
+
+
+        **End-user assignment:** Provide euEmpId + assignedDate to assign or re-assign.
+        Send euEmpId as null to unassign. Omit euEmpId entirely to leave the existing assignment unchanged.
+        If the end user does not yet exist, also supply euName, euDivision, euDepartment, and euLocation
+        to auto-register them.
+        Assignment is blocked if the end user has a Resigned status.
+
+
+        **Important:** If euEmpId already belongs to an existing end user, any euName, euDivision,
+        euDepartment, euLocation, euEmail, or euContactNo also included in the payload are silently
+        ignored. Only euEmpId and assignedDate are used in that case — the existing end user's
+        stored details are never overwritten as a side effect of an asset assignment. Those fields
+        are consulted only when euEmpId does not yet correspond to any registered end user.
+
+
+        **euDepartment** (used when auto-registering a new end user) accepts three formats:
+
+
+        - **Integer** — resolved directly as a department ID. Example: 13
+
+        - **Numeric string** — parsed and resolved as a department ID. Example: "13"
+
+        - **Name string** — resolved by a case-insensitive name match. Example: "it department"
+
+        - Returns 404 if the referenced department does not exist.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: "**[REQUIRED]** The computer_id to update."
+          schema:
+            type: integer
+          example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ComputerWriteRequest"
+            examples:
+              preserveAssignment:
+                summary: "Update hardware fields only — omit euEmpId to preserve existing assignment"
+                value:
+                  computerName: "PC-HQ-001"
+                  serialNo: "SN123456789"
+                  model: "EliteDesk 800 G6"
+                  brand: "HP"
+                  deviceType: "Desktop"
+                  operatingSystem: "Windows 11 Pro"
+                  computerStatus: "Active"
+                  assetCondition: "Used"
+                  receivedDate: "2023-01-15"
+                  warrantyExpiry: "2026-01-15"
+                  vendor: "Global Tech Supply"
+                  processor: "Intel Core i7-9700"
+                  ramSize: "32GB"
+                  storageType: "SSD"
+                  storageCapacity: "512GB"
+                  ipAddress: "192.168.1.101"
+                  macAddress: "AA:BB:CC:DD:EE:FF"
+                  networkConnectivity: "LAN"
+                  cost: 47000.00
+                  peripherals:
+                    - peripheral_name: "Mouse"
+                    - peripheral_name: "Keyboard"
+                    - peripheral_name: "Monitor"
+                  programs:
+                    - program_name: "Microsoft Office"
+                    - program_name: "Adobe Acrobat Reader"
+              unassign:
+                summary: "Update and unassign the current end user (euEmpId: null)"
+                value:
+                  computerName: "PC-HQ-001"
+                  serialNo: "SN123456789"
+                  model: "EliteDesk 800 G5"
+                  brand: "HP"
+                  deviceType: "Desktop"
+                  operatingSystem: "Windows 11 Pro"
+                  computerStatus: "Spare"
+                  receivedDate: "2023-01-15"
+                  warrantyExpiry: "2026-01-15"
+                  vendor: "Global Tech Supply"
+                  processor: "Intel Core i7-9700"
+                  ramSize: "16GB"
+                  storageType: "SSD"
+                  storageCapacity: "512GB"
+                  ipAddress: "192.168.1.101"
+                  macAddress: "AA:BB:CC:DD:EE:FF"
+                  networkConnectivity: "LAN"
+                  cost: 45000.00
+                  euEmpId: null
+              clearPeripherals:
+                summary: "Clear all peripheral associations (send empty array)"
+                value:
+                  computerName: "PC-HQ-001"
+                  serialNo: "SN123456789"
+                  model: "EliteDesk 800 G5"
+                  brand: "HP"
+                  deviceType: "Desktop"
+                  operatingSystem: "Windows 11 Pro"
+                  computerStatus: "Repair"
+                  receivedDate: "2023-01-15"
+                  warrantyExpiry: "2026-01-15"
+                  vendor: "Global Tech Supply"
+                  processor: "Intel Core i7-9700"
+                  ramSize: "16GB"
+                  storageType: "SSD"
+                  storageCapacity: "512GB"
+                  ipAddress: "192.168.1.101"
+                  macAddress: "AA:BB:CC:DD:EE:FF"
+                  networkConnectivity: "LAN"
+                  cost: 45000.00
+                  peripherals: []
+              clearPrograms:
+                summary: "Clear all program associations (send empty array)"
+                value:
+                  computerName: "PC-HQ-001"
+                  serialNo: "SN123456789"
+                  model: "EliteDesk 800 G5"
+                  brand: "HP"
+                  deviceType: "Desktop"
+                  operatingSystem: "Windows 11 Pro"
+                  computerStatus: "Repair"
+                  receivedDate: "2023-01-15"
+                  warrantyExpiry: "2026-01-15"
+                  vendor: "Global Tech Supply"
+                  processor: "Intel Core i7-9700"
+                  ramSize: "16GB"
+                  storageType: "SSD"
+                  storageCapacity: "512GB"
+                  ipAddress: "192.168.1.101"
+                  macAddress: "AA:BB:CC:DD:EE:FF"
+                  networkConnectivity: "LAN"
+                  cost: 45000.00
+                  programs: []
+              reassignWithNewEndUserIntDepartment:
+                summary: "Re-assign to a new end user — euDepartment as integer ID"
+                value:
+                  computerName: "PC-HQ-001"
+                  serialNo: "SN123456789"
+                  model: "EliteDesk 800 G5"
+                  brand: "HP"
+                  deviceType: "Desktop"
+                  operatingSystem: "Windows 11 Pro"
+                  computerStatus: "Active"
+                  receivedDate: "2023-01-15"
+                  warrantyExpiry: "2026-01-15"
+                  vendor: "Global Tech Supply"
+                  processor: "Intel Core i7-9700"
+                  ramSize: "16GB"
+                  storageType: "SSD"
+                  storageCapacity: "512GB"
+                  ipAddress: "192.168.1.101"
+                  macAddress: "AA:BB:CC:DD:EE:FF"
+                  cost: 45000.00
+                  euEmpId: 20110
+                  assignedDate: "2024-07-01"
+                  euName: "Liza Gomez"
+                  euDivision: "HR"
+                  euDepartment: 7
+                  euLocation: "6F"
+              reassignWithNewEndUserStringDepartment:
+                summary: "Re-assign to a new end user — euDepartment as name string (case-insensitive)"
+                value:
+                  computerName: "PC-HQ-001"
+                  serialNo: "SN123456789"
+                  model: "EliteDesk 800 G5"
+                  brand: "HP"
+                  deviceType: "Desktop"
+                  operatingSystem: "Windows 11 Pro"
+                  computerStatus: "Active"
+                  receivedDate: "2023-01-15"
+                  warrantyExpiry: "2026-01-15"
+                  vendor: "Global Tech Supply"
+                  processor: "Intel Core i7-9700"
+                  ramSize: "16GB"
+                  storageType: "SSD"
+                  storageCapacity: "512GB"
+                  ipAddress: "192.168.1.101"
+                  macAddress: "AA:BB:CC:DD:EE:FF"
+                  cost: 45000.00
+                  euEmpId: 20111
+                  assignedDate: "2024-07-01"
+                  euName: "Tomas Rivera"
+                  euDivision: "HR"
+                  euDepartment: "human resources"
+                  euLocation: "6F"
+      responses:
+        "200":
+          description: Computer record updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              example:
+                message: "Computer updated successfully"
+        "400":
+          description: >
+            Bad Request — Missing required fields, Invalid ENUM values, Invalid peripherals
+            array structure, Invalid programs array structure, Missing assignedDate when
+            euEmpId is provided, Missing end user registration fields, Invalid euLocation,
+            Invalid euDepartment value, or attempting to assign to a Resigned end user.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              examples:
+                "Missing Fields":
+                  value:
+                    message: "Missing required fields"
+                "Invalid computerStatus":
+                  value:
+                    message: "Invalid computer status value"
+                "Invalid assetCondition":
+                  value:
+                    message: "Invalid asset condition value"
+                "Invalid networkConnectivity":
+                  value:
+                    message: "Invalid network connectivity value"
+                "Peripherals Not Array":
+                  value:
+                    message: "Peripherals must be an array"
+                "Peripheral Entry Missing Key":
+                  value:
+                    message: "Each peripheral entry must have at least peripheral_id or peripheral_name"
+                "Programs Not Array":
+                  value:
+                    message: "Programs must be an array"
+                "Program Entry Missing Key":
+                  value:
+                    message: "Each program entry must have at least program_id or program_name"
+                "End User Not Found Missing Fields":
+                  value:
+                    message: "End user not found. Please provide euName, euDivision, euDepartment, and euLocation to register them."
+                "Invalid euLocation":
+                  value:
+                    message: "Invalid location value"
+                "Invalid euDepartment Value":
+                  summary: euDepartment is an invalid type or value (e.g. 0 or negative integer)
+                  value:
+                    message: "Invalid euDepartment value"
+                "Resigned End User":
+                  summary: The end user is Resigned and cannot be assigned assets
+                  value:
+                    message: "Cannot assign assets to a Resigned end user"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          description: >
+            Not Found — The computer does not exist, one or more referenced peripherals
+            do not exist, one or more referenced programs do not exist, or the referenced
+            department does not exist.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              examples:
+                "Computer Not Found":
+                  value:
+                    message: "Computer not found"
+                "Peripheral Not Found":
+                  value:
+                    message: 'Peripherals not found: name:"Webcam"'
+                "Program Not Found":
+                  value:
+                    message: 'Programs not found: name:"AutoCAD"'
+                "euDepartment Not Found":
+                  value:
+                    message: "Department not found"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  "/computer/:id/assign":
+    patch:
+      tags:
+        - Computers
+      summary: Assign or unassign a computer to an end user
+      description: >
+        Assigns or unassigns a computer from an end user without touching any other computer fields.
+
+
+        **Required Permission: 22 (Assign Asset - Computer)** — Accessible by: '**IT Manager**', '**IT Supervisor**', and '**IT Helpdesk**'
+
+
+        **Assignment:** Provide euEmpId and assignedDate. If the end user does not yet exist,
+        also supply euName, euDivision, euDepartment, and euLocation to auto-register them.
+        Assignment is blocked if the end user has a Resigned status.
+
+
+        **Important:** If euEmpId already belongs to an existing end user, any euName, euDivision,
+        euDepartment, euLocation, euEmail, or euContactNo also included in the payload are silently
+        ignored. Only euEmpId and assignedDate are used in that case — the existing end user's
+        stored details are never overwritten as a side effect of an asset assignment. Those fields
+        are consulted only when euEmpId does not yet correspond to any registered end user.
+
+        **euDepartment** (used only when auto-registering a new end user) accepts three formats:
+
+        - **Integer** — resolved directly as a department ID. Example: 13
+
+        - **Numeric string** — parsed and resolved as a department ID. Example: "13"
+
+        - **Name string** — resolved by a case-insensitive name match. Example: "it department"
+
+        - Returns 404 if the referenced department does not exist.
+
+
+        **Unassignment:** Send euEmpId as null. All other fields are ignored.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: "**[REQUIRED]** The computer_id to assign or unassign."
+          schema:
+            type: integer
+          example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssignComputerRequest"
+            examples:
+              "Assign Existing":
+                summary: "Assign to an existing end user"
+                value:
+                  euEmpId: 20045
+                  assignedDate: "2024-06-01"
+              "Assign New User w/ Int Department":
+                summary: "Assign and auto-register a new end user — euDepartment as integer ID"
+                value:
+                  euEmpId: 20099
+                  assignedDate: "2024-06-01"
+                  euName: "Pedro Reyes"
+                  euDivision: "Accounting"
+                  euDepartment: 4
+                  euLocation: "5F"
+                  euEmail: "pedro.reyes@hospital.com"
+                  euContactNo: "09181234567"
+              "Assign New User String w/ Department Name":
+                summary: "Assign and auto-register a new end user — euDepartment as name string (case-insensitive)"
+                value:
+                  euEmpId: 20100
+                  assignedDate: "2024-06-01"
+                  euName: "Rosa Manalo"
+                  euDivision: "Accounting"
+                  euDepartment: "accounting department"
+                  euLocation: "5F"
+              assignNewUserNumericStringDepartment:
+                summary: "Assign and auto-register a new end user — euDepartment as numeric string (treated as ID)"
+                value:
+                  euEmpId: 20101
+                  assignedDate: "2024-06-01"
+                  euName: "Carlo Bautista"
+                  euDivision: "Accounting"
+                  euDepartment: "4"
+                  euLocation: "5F"
+              unassign:
+                summary: "Unassign the computer (send euEmpId: null)"
+                value:
+                  euEmpId: null
+      responses:
+        "200":
+          description: Assignment or unassignment completed successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              examples:
+                Assigned:
+                  value:
+                    message: "Computer assigned successfully"
+                Unassigned:
+                  value:
+                    message: "Computer unassigned successfully"
+        "400":
+          description: >
+            Bad Request — Missing assignedDate when euEmpId is provided; End user not found
+            and registration fields are incomplete; Invalid euLocation; Invalid euDepartment value;
+            or attempting to assign to a Resigned end user.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              examples:
+                "Missing assignedDate":
+                  value:
+                    message: "Missing required fields"
+                "End User Not Found Missing Fields":
+                  value:
+                    message: "End user not found. Please provide euName, euDivision, euDepartment, and euLocation to register them."
+                "Invalid Location":
+                  value:
+                    message: "Invalid location value"
+                "Invalid Department Value":
+                  summary: euDepartment is an invalid type or value (e.g. 0 or negative integer)
+                  value:
+                    message: "Invalid euDepartment value"
+                "Resigned End User":
+                  summary: The end user is Resigned and cannot be assigned assets
+                  value:
+                    message: "Cannot assign assets to a Resigned end user"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          description: >
+            Not Found — The computer does not exist, or the referenced department
+            (by integer ID, numeric string ID, or name string) does not exist.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              examples:
+                "Computer Not Found":
+                  value:
+                    message: "Computer not found"
+                "euDepartment Not Found":
+                  value:
+                    message: "Department not found"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  "/computer/:id/network":
+    patch:
+      tags:
+        - Computers
+      summary: Update network info of a computer
+      description: >
+        Partially updates only the network-related fields: ip_address, network_connectivity,
+        and has_vpn_access. All other computer fields are left unchanged.
+
+
+        Valid Options (networkConnectivity): "WIFI", "LAN", or "WIFI & LAN"
+
+
+        **Required Permission: 29 (Edit Asset - Computer (Network Fields))** — Accessible by: '**IT Manager**', '**IT Supervisor**', and '**Network Admin**'
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: "**[REQUIRED]** The computer_id to update."
+          schema:
+            type: integer
+          example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatchNetworkRequest"
+            examples:
+              "Update All":
+                summary: "Update IP, connectivity, and VPN access"
+                value:
+                  ipAddress: "192.168.1.200"
+                  networkConnectivity: "WIFI & LAN"
+                  hasVpnAccess: true
+              "Update Without VPN Flag":
+                summary: "Update IP and connectivity — hasVpnAccess omitted, defaults to false"
+                value:
+                  ipAddress: "10.0.0.55"
+                  networkConnectivity: "LAN"
+              "Disable VPN":
+                summary: "Explicitly set hasVpnAccess to false"
+                value:
+                  ipAddress: "192.168.1.101"
+                  networkConnectivity: "WIFI"
+                  hasVpnAccess: false
+      responses:
+        "200":
+          description: Computer network info updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              example:
+                message: "Computer network info updated successfully"
+        "400":
+          description: "Bad Request — ipAddress is missing, networkConnectivity is missing/null, or networkConnectivity is an invalid ENUM value."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              examples:
+                "Missing IP or Connectivity":
+                  summary: "ipAddress and/or networkConnectivity omitted or sent as null — both are required"
+                  value:
+                    message: "Missing required fields"
+                "Invalid networkConnectivity":
+                  value:
+                    message: "Invalid network connectivity value"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          description: "Not Found — The computer does not exist."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              example:
+                message: "Computer not found"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+components:
+  schemas:
+    ComputerObject:
+      type: object
+      description: Full computer asset record as returned by GET endpoints.
+      properties:
+        computer_id:
+          type: integer
+          example: 1
+        computer_name:
+          type: string
+          example: "PC-HQ-001"
+        asset_tag:
+          type: string
+          nullable: true
+          example: "TMCSL-PC-001"
+        serial_no:
+          type: string
+          example: "SN123456789"
+        model:
+          type: string
+          example: "EliteDesk 800 G5"
+        brand:
+          type: string
+          example: "HP"
+        device_type:
+          type: string
+          example: "Desktop"
+        operating_system:
+          type: string
+          example: "Windows 11 Pro"
+        computer_status:
+          type: string
+          enum:
+            - Active
+            - Repair
+            - Spare
+            - Defective
+          example: "Active"
+        asset_condition:
+          type: string
+          nullable: true
+          enum:
+            - New
+            - Used
+          example: "Used"
+        received_date:
+          type: string
+          format: date
+          example: "2023-01-15"
+        warranty_expiry:
+          type: string
+          format: date
+          nullable: true
+          example: "2026-01-15"
+        assigned_date:
+          type: string
+          format: date
+          nullable: true
+          example: "2023-02-01"
+        to_return_by:
+          type: string
+          format: date
+          nullable: true
+          example: "2024-12-31"
+        vendor:
+          type: string
+          example: "Global Tech Supply"
+        processor:
+          type: string
+          example: "Intel Core i7-9700"
+        ram_size:
+          type: string
+          example: "16GB"
+        storage_type:
+          type: string
+          example: "SSD"
+        storage_capacity:
+          type: string
+          example: "512GB"
+        ip_address:
+          type: string
+          example: "192.168.1.101"
+        mac_address:
+          type: string
+          nullable: true
+          example: "AA:BB:CC:DD:EE:FF"
+        network_connectivity:
+          type: string
+          description: >
+            NOT NULL column with no DEFAULT in the database schema; always one
+            of the listed ENUM values, never null.
+          enum:
+            - WIFI
+            - LAN
+            - WIFI & LAN
+          example: "LAN"
+        has_vpn_access:
+          type: boolean
+          example: false
+        anydesk_ip:
+          type: string
+          nullable: true
+          example: "987654321"
+        remarks:
+          type: string
+          nullable: true
+          example: "For use in ICU department"
+        cost:
+          type: number
+          format: float
+          nullable: true
+          example: 45000.00
+        assigned_user_id:
+          type: integer
+          nullable: true
+          example: 3
+        assigned_user_name:
+          type: string
+          nullable: true
+          example: "Maria Santos"
+        assigned_user_emp_id:
+          type: integer
+          nullable: true
+          example: 20045
+        peripherals:
+          type: array
+          items:
+            type: string
+          description: List of peripheral names linked to this computer.
+          example: ["Mouse", "Keyboard", "Monitor"]
+        programs:
+          type: array
+          items:
+            type: string
+          description: List of pre-installed program names linked to this computer.
+          example: ["Microsoft Office", "Google Chrome", "Adobe Acrobat Reader"]
+
+    PeripheralEntry:
+      type: object
+      description: >
+        A reference to an existing row in the peripheral table.
+        Provide peripheral_name, peripheral_id, or both.
+        Returns 404 if the referenced peripheral does not exist.
+      properties:
+        peripheral_name:
+          type: string
+          example: "Mouse"
+        peripheral_id:
+          type: integer
+          example: 1
+
+    ProgramEntry:
+      type: object
+      description: >
+        A reference to an existing row in the program table.
+        Provide program_name, program_id, or both.
+        Returns 404 if the referenced program does not exist.
+      properties:
+        program_name:
+          type: string
+          example: "Microsoft Office"
+        program_id:
+          type: integer
+          example: 1
+
+    ComputerWriteRequest:
+      type: object
+      required:
+        - computerName
+        - serialNo
+        - model
+        - brand
+        - deviceType
+        - operatingSystem
+        - computerStatus
+        - receivedDate
+        - vendor
+        - processor
+        - ramSize
+        - storageType
+        - storageCapacity
+        - ipAddress
+        - networkConnectivity
+      properties:
+        computerName:
+          type: string
+          description: "**[REQUIRED]** Hostname or label of the computer."
+          example: "PC-HQ-001"
+        assetTag:
+          type: string
+          nullable: true
+          description: "Optional. Internal asset tag. Must be unique if provided."
+          example: "TMCSL-PC-001"
+        serialNo:
+          type: string
+          description: "**[REQUIRED]** Manufacturer serial number. Must be unique."
+          example: "SN123456789"
+        model:
+          type: string
+          description: "**[REQUIRED]** Hardware model name."
+          example: "EliteDesk 800 G5"
+        brand:
+          type: string
+          description: "**[REQUIRED]** Manufacturer or brand name."
+          example: "HP"
+        deviceType:
+          type: string
+          description: "**[REQUIRED]** Type of device (e.g., Desktop, Laptop, All-in-One)."
+          example: "Desktop"
+        operatingSystem:
+          type: string
+          description: "**[REQUIRED]** Installed operating system."
+          example: "Windows 11 Pro"
+        computerStatus:
+          type: string
+          description: "**[REQUIRED]** Must be one of the allowed ENUM values: **Active, Repair, Spare, Defective**."
+          enum:
+            - Active
+            - Repair
+            - Spare
+            - Defective
+          example: "Active"
+        assetCondition:
+          type: string
+          nullable: true
+          description: "Optional. If provided, must be one of the allowed ENUM values: **New, Used**."
+          enum:
+            - New
+            - Used
+          example: "Used"
+        receivedDate:
+          type: string
+          format: date
+          description: "**[REQUIRED]** Date received. Format: YYYY-MM-DD."
+          example: "2023-01-15"
+        warrantyExpiry:
+          type: string
+          format: date
+          nullable: true
+          description: "Optional. Warranty expiration date. Format: YYYY-MM-DD. Defaults to null if omitted."
+          example: "2026-01-15"
+        vendor:
+          type: string
+          description: "**[REQUIRED]** Supplier or vendor name."
+          example: "Global Tech Supply"
+        processor:
+          type: string
+          description: "**[REQUIRED]** CPU model and specification."
+          example: "Intel Core i7-9700"
+        ramSize:
+          type: string
+          description: "**[REQUIRED]** RAM size (e.g., 8GB, 16GB)."
+          example: "16GB"
+        storageType:
+          type: string
+          description: "**[REQUIRED]** Type of storage (e.g., SSD, HDD, NVMe)."
+          example: "SSD"
+        storageCapacity:
+          type: string
+          description: "**[REQUIRED]** Storage capacity (e.g., 256GB, 512GB)."
+          example: "512GB"
+        ipAddress:
+          type: string
+          description: "**[REQUIRED]** Assigned IP address."
+          example: "192.168.1.101"
+        macAddress:
+          type: string
+          nullable: true
+          description: "Optional. Network adapter MAC address. Format: AA:BB:CC:DD:EE:FF. Defaults to null if omitted."
+          example: "AA:BB:CC:DD:EE:FF"
+        networkConnectivity:
+          type: string
+          description: "**[REQUIRED]** Must be one of the allowed ENUM values: **WIFI, LAN, WIFI & LAN**."
+          enum:
+            - WIFI
+            - LAN
+            - WIFI & LAN
+          example: "LAN"
+        hasVpnAccess:
+          type: boolean
+          description: "Optional. Defaults to false if omitted."
+          example: false
+        anyDeskIp:
+          type: string
+          nullable: true
+          description: "Optional. AnyDesk remote access ID or address."
+          example: "987654321"
+        toReturnBy:
+          type: string
+          format: date
+          nullable: true
+          description: "Optional. Return date. Format: YYYY-MM-DD."
+          example: "2024-12-31"
+        remarks:
+          type: string
+          nullable: true
+          description: "Optional. Free-text notes."
+          example: "Reserved for temporary staff use"
+        cost:
+          type: number
+          format: float
+          nullable: true
+          description: "Optional. Acquisition cost. Must be zero or greater if provided."
+          example: 45000.00
+        peripherals:
+          type: array
+          nullable: true
+          description: >
+            Optional. List of peripherals to associate with this computer.
+            Each entry must reference an existing peripheral by peripheral_name, peripheral_id, or both.
+            On PUT: fully replaces all existing associations. Send an empty array or omit to clear all.
+            Returns 404 if any referenced peripheral does not exist.
+          items:
+            $ref: "#/components/schemas/PeripheralEntry"
+          example:
+            - peripheral_name: "Mouse"
+            - peripheral_name: "Keyboard"
+        programs:
+          type: array
+          nullable: true
+          description: >
+            Optional. List of pre-installed programs to associate with this computer.
+            Each entry must reference an existing program by program_name, program_id, or both.
+            On PUT: fully replaces all existing associations. Send an empty array or omit to clear all.
+            Returns 404 if any referenced program does not exist.
+          items:
+            $ref: "#/components/schemas/ProgramEntry"
+          example:
+            - program_name: "Microsoft Office"
+            - program_name: "Google Chrome"
+        euEmpId:
+          type: integer
+          nullable: true
+          description: >
+            Optional. Employee ID of the end user to assign.
+            Pass null (PUT only) to unassign. Omit entirely (only) to leave the existing assignment unchanged.
+            When assigning, assignedDate is also required.
+            If the end user does not yet exist, supply euName, euDivision, euDepartment, and euLocation to auto-register them.
+            If euEmpId already belongs to an existing end user, euName, euDivision, euDepartment, euLocation,
+            euEmail, and euContactNo are silently ignored even if included — the existing end user's stored
+            details are never modified by this endpoint.
+            Returns 400 if the end user has a Resigned status.
+          example: 20045
+        assignedDate:
+          type: string
+          format: date
+          description: "**[REQUIRED when euEmpId is provided]** Date of assignment. Format: YYYY-MM-DD."
+          example: "2023-02-01"
+        euName:
+          type: string
+          description: "**[REQUIRED only if the end user does not yet exist]** Full name of the end user."
+          example: "Maria Santos"
+        euDivision:
+          type: string
+          description: "**[REQUIRED only if the end user does not yet exist]** Division name."
+          example: "Finance"
+        euDepartment:
+          oneOf:
+            - type: integer
+              description: >
+                Department resolved by ID. Must be a positive integer matching an existing
+                department record. Returns 404 if the ID does not exist.
+              example: 13
+            - type: string
+              description: >
+                Department resolved by name or numeric string.
+                A string of only digits (e.g. "4") is parsed and treated as an ID lookup.
+                Any other string is matched against department_name using a case-insensitive comparison.
+                Returns 404 if no match is found.
+              example: "Accounting Department"
+          description: >
+            **[REQUIRED only if the end user does not yet exist]** Reference to an existing department.
+            Accepts three formats:
+
+            - **Integer** — direct ID lookup. Example: 4
+
+            - **Numeric string** — parsed as an ID. Example: "4"
+
+            - **Name string** — case-insensitive name match. Example: "accounting department" or "Accounting Department"
+
+            Returns 400 if the value is an invalid type (e.g. zero, negative integer).
+            Returns 404 if the referenced department does not exist.
+        euLocation:
+          type: string
+          description: >
+            **[REQUIRED only if the end user does not yet exist]** Floor or area of the end user.
+            Must be exactly one of the allowed ENUM values (case-sensitive):
+            **B2, B1, GF, 2F, 3F, 4F, 5F, 6F, 7F, 8F, PO**
+          enum:
+            - B2
+            - B1
+            - GF
+            - 2F
+            - 3F
+            - 4F
+            - 5F
+            - 6F
+            - 7F
+            - 8F
+            - PO
+          example: "4F"
+        euEmail:
+          type: string
+          nullable: true
+          description: "Optional. Email address of the end user."
+          example: "maria.santos@hospital.com"
+        euContactNo:
+          type: string
+          nullable: true
+          description: "Optional. Contact number of the end user."
+          example: "09171234567"
+
+    AssignComputerRequest:
+      type: object
+      description: >
+        Request body for PATCH /computer/:id/assign.
+        To assign: provide euEmpId and assignedDate. Supply end user registration fields
+        if the end user does not yet exist.
+        To unassign: send euEmpId as null.
+        Returns 400 if the end user has a Resigned status.
+        If euEmpId already belongs to an existing end user, any registration fields
+        (euName, euDivision, euDepartment, euLocation, euEmail, euContactNo) included in the
+        payload are silently ignored — the existing end user's stored details are never
+        modified as a side effect of an asset assignment.
+      properties:
+        euEmpId:
+          type: integer
+          nullable: true
+          description: "**[REQUIRED]** Employee ID of the end user to assign. Send null to unassign. If this already matches an existing end user, all other end-user fields below are ignored."
+          example: 20045
+        assignedDate:
+          type: string
+          format: date
+          description: "**[REQUIRED when assigning]** Date of assignment. Format: YYYY-MM-DD."
+          example: "2023-02-01"
+        euName:
+          type: string
+          description: "**[REQUIRED only if end user does not yet exist]** Full name."
+          example: "Pedro Reyes"
+        euDivision:
+          type: string
+          description: "**[REQUIRED only if end user does not yet exist]** Division name."
+          example: "Accounting"
+        euDepartment:
+          oneOf:
+            - type: integer
+              description: >
+                Department resolved by ID. Must be a positive integer matching an existing
+                department record. Returns 404 if the ID does not exist.
+              example: 4
+            - type: string
+              description: >
+                Department resolved by name or numeric string ID.
+                A string of only digits (e.g. "4") is parsed and treated as an ID lookup.
+                Any other string is matched against department_name using a case-insensitive comparison.
+                Returns 404 if no match is found.
+              example: "accounting department"
+          description: >
+            **[REQUIRED only if end user does not yet exist]** Reference to an existing department.
+            Accepts three formats:
+
+            - **Integer** — direct ID lookup. Example: 4
+
+            - **Numeric string** — parsed as an ID. Example: "4"
+
+            - **Name string** — case-insensitive name match. Example: "accounting department"
+
+            Returns 400 if the value is an invalid type (e.g. zero, negative integer).
+            Returns 404 if the referenced department does not exist.
+        euLocation:
+          type: string
+          description: >
+            **[REQUIRED only if end user does not yet exist]** Floor or area of the end user.
+            Must be exactly one of the allowed ENUM values (case-sensitive):
+            **B2, B1, GF, 2F, 3F, 4F, 5F, 6F, 7F, 8F, PO**
+          enum:
+            - B2
+            - B1
+            - GF
+            - 2F
+            - 3F
+            - 4F
+            - 5F
+            - 6F
+            - 7F
+            - 8F
+            - PO
+          example: "5F"
+        euEmail:
+          type: string
+          nullable: true
+          description: "Optional. Email address of the end user."
+          example: "pedro.reyes@hospital.com"
+        euContactNo:
+          type: string
+          nullable: true
+          description: "Optional. Contact number of the end user."
+          example: "09181234567"
+
+    PatchNetworkRequest:
+      type: object
+      required:
+        - ipAddress
+        - networkConnectivity
+      description: >
+        Request body for PATCH /computer/:id/network.
+
+
+        Updates only ip_address, network_connectivity, and has_vpn_access.
+
+
+        All other computer fields remain unchanged.
+
+
+        **Required Permission: 29 (Edit Asset - Computer (Network Fields))** — Accessible by: '**IT Manager**', '**IT Supervisor**', and '**Network Admin**'
+      properties:
+        ipAddress:
+          type: string
+          description: "**[REQUIRED]** New IP address."
+          example: "192.168.1.200"
+        networkConnectivity:
+          type: string
+          description: "**[REQUIRED]** Must be one of the allowed ENUM values: **WIFI, LAN, WIFI & LAN**. The column is NOT NULL, so this field cannot be omitted or sent as null."
+          enum:
+            - WIFI
+            - LAN
+            - WIFI & LAN
+          example: "WIFI & LAN"
+        hasVpnAccess:
+          type: boolean
+          description: "Optional. Defaults to false if omitted."
+          example: true
+
+    MessageResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "Operation successful"
+
+  responses:
+    Unauthorized:
+      description: "Unauthorized — No token provided or the token is invalid/expired."
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/MessageResponse"
+          examples:
+            noToken:
+              summary: No token provided
+              value:
+                message: "Unauthorized Access: No Token Provided"
+            invalidToken:
+              summary: Token is invalid or expired
+              value:
+                message: "Unauthorized Access: Invalid Token"
+    Forbidden:
+      description: "Forbidden — Authenticated but the user lacks the required permission."
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/MessageResponse"
+          example:
+            message: "Forbidden: Insufficient permissions"
+    NotFound:
+      description: "Not Found — The requested resource does not exist."
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/MessageResponse"
+          example:
+            message: "Computer not found"
+    BadRequest:
+      description: "Bad Request — Missing or invalid fields in the request body."
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/MessageResponse"
+          example:
+            message: "Missing required fields"
+    InternalError:
+      description: "Internal Server Error — An unexpected server-side error occurred."
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/MessageResponse"
+          example:
+            message: "Something went wrong"

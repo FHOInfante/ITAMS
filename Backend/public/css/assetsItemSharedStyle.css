@@ -1,0 +1,995 @@
+/* ============================================================
+   assetsItemSharedStyle.css
+   Shared design system for all Asset Detail / Edit pages:
+   computerItem.html, upsItem.html, printerItem.html,
+   networkDevicesItem.html
+
+   Page-specific CSS files (computerItem.css, upsItem.css,
+   printerItem.css, networkDevicesItem.css) should link AFTER
+   this file and only contain overrides / unique rules for
+   that page.
+   ============================================================ */
+
+*, *::before, *::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: #f5f6fa;
+    padding: 20px;
+    color: #1e293b;
+}
+
+/* ── Page Header ──────────────────────────────────────────── */
+.page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: #64748b;
+}
+
+.breadcrumb a {
+    color: #2563eb;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.breadcrumb a:hover {
+    text-decoration: underline;
+}
+
+.breadcrumb-sep {
+    color: #cbd5e1;
+    font-size: 16px;
+}
+
+.page-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: #0f172a;
+    margin-top: 4px;
+}
+
+.header-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+/* ── Status Badge ─────────────────────────────────────────── */
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+}
+
+/* Active  → green  */ .status-badge.available { background: #dcfce7; color: #15803d; }
+/* Spare   → blue   */ .status-badge.assigned  { background: #dbeafe; color: #1d4ed8; }
+/* Repair  → amber  */ .status-badge.repair    { background: #fef3c7; color: #b45309; }
+/* Defective → red  */ .status-badge.retired   { background: #fee2e2; color: #b91c1c; }
+
+/* ── Buttons ──────────────────────────────────────────────── */
+button {
+    border: none;
+    padding: 9px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    transition: background .15s, border-color .15s, color .15s, box-shadow .15s, transform .15s;
+}
+
+button:hover { opacity: .88; }
+
+.btn-primary   { background: #2563eb; color: #fff; }
+.btn-secondary { background: #fff; color: #334155; border: 1px solid #e2e8f0; }
+.btn-danger    { background: #fee2e2; color: #dc2626; }
+.btn-success   { background: #dcfce7; color: #15803d; }
+
+.btn-primary:hover {
+    opacity: 1;
+    background: #1d4ed8;
+    box-shadow: 0 2px 6px rgba(37, 99, 235, .35);
+    transform: translateY(-1px);
+}
+
+.btn-secondary:hover {
+    opacity: 1;
+    background: #f1f5f9;
+    border-color: #94a3b8;
+    color: #1e293b;
+    box-shadow: 0 2px 6px rgba(15, 23, 42, .08);
+    transform: translateY(-1px);
+}
+
+.btn-secondary:active,
+.btn-primary:active {
+    transform: translateY(0);
+    box-shadow: none;
+}
+
+/* ── Edit Mode Banner ─────────────────────────────────────── */
+#editModeBar {
+    display: none;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 10px;
+    padding: 12px 16px;
+    margin-bottom: 20px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+#editModeBar.visible { display: flex; }
+
+#editModeBar p {
+    font-size: 13px;
+    color: #1e40af;
+}
+
+#editModeBar p strong { font-weight: 700; }
+
+/* ── View / Edit Mode Visibility Toggles ─────────────────── */
+/* Hide edit inputs in view mode; hide view values in edit mode */
+body.view-mode .edit-only { display: none !important; }
+body.view-mode .view-only { display: flex !important; }
+body.edit-mode .edit-only { display: flex !important; }
+body.edit-mode .view-only { display: none !important; }
+
+/* ── Quick Info Bar (horizontal, top of page) ─────────────── */
+.quick-info-bar {
+    margin-bottom: 20px;
+}
+
+.info-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px 20px;
+}
+
+.info-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 13px;
+}
+
+.info-cell .label {
+    color: #64748b;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+}
+
+.info-cell .value {
+    color: #1e293b;
+    font-weight: 600;
+    word-break: break-word;
+}
+
+.quick-info-dept,
+.quick-info-user {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid #f1f5f9;
+}
+
+@media (max-width: 900px) {
+    .info-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 480px) {
+    .info-grid { grid-template-columns: 1fr; }
+}
+
+/* ── Two-Column Page Layout ───────────────────────────────── */
+.detail-layout {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 20px;
+    align-items: start;
+}
+
+@media (max-width: 900px) {
+    .detail-layout { grid-template-columns: 1fr; }
+}
+
+/* ── Sidebar Panel (right column) — currently unpopulated by
+   any page's JS, kept for the pages that still ship it ──── */
+.sidebar-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+/* ── Quick Info List (sidebar variant) ────────────────────── */
+.info-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+    font-size: 13px;
+}
+
+.info-row .label {
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    flex-shrink: 0;
+}
+
+.info-row .value {
+    color: #1e293b;
+    font-weight: 500;
+    text-align: right;
+    word-break: break-word;
+}
+
+/* ── Hardware Chips ───────────────────────────────────────── */
+.hw-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 12px;
+    color: #334155;
+    font-weight: 500;
+}
+
+.hw-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 14px;
+}
+
+/* ── Assigned User Card (sidebar variant) ─────────────────── */
+.assigned-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px;
+    background: #f8fafc;
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+}
+
+.user-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #2563eb, #7c3aed);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    font-weight: 700;
+    color: #fff;
+    flex-shrink: 0;
+}
+
+.user-info .name {
+    font-size: 14px;
+    font-weight: 600;
+    color: #0f172a;
+}
+
+.user-info .meta {
+    font-size: 12px;
+    color: #64748b;
+    margin-top: 1px;
+}
+
+.no-user {
+    font-size: 13px;
+    color: #94a3b8;
+    font-style: italic;
+    padding: 12px;
+    text-align: center;
+    background: #f8fafc;
+    border-radius: 8px;
+    border: 1px dashed #e2e8f0;
+}
+
+/* ── Section Cards ────────────────────────────────────────── */
+.section-card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 16px;
+    border: 1px solid #e2e8f0;
+}
+
+.section-card:last-child { margin-bottom: 0; }
+
+.section-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 18px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #f1f5f9;
+    flex-wrap: nowrap;
+}
+
+.section-header-text {
+    flex: 1;            /* push controls to the right */
+    min-width: 0;
+}
+
+.section-icon {
+    width: 34px;
+    height: 34px;
+    background: #eff6ff;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.section-icon svg {
+    width: 17px;
+    height: 17px;
+    color: #2563eb;
+}
+
+.section-title-text {
+    font-size: 14px;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.section-subtitle {
+    font-size: 12px;
+    color: #94a3b8;
+    margin-top: 1px;
+}
+
+/* ── Form Grid ────────────────────────────────────────────── */
+.form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.form-group.full { grid-column: 1 / -1; }
+
+.form-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: #64748b;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.req { color: #ef4444; font-size: 13px; line-height: 1; }
+.opt {
+    font-size: 10px;
+    color: #aaa;
+    font-style: italic;
+    text-transform: none;
+    letter-spacing: 0;
+    font-weight: 400;
+}
+
+/* ── View Mode: Read-only Value Boxes ─────────────────────── */
+.view-value {
+    display: block;
+    padding: 8px 11px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 13px;
+    color: #334155;
+    min-height: 36px;
+    word-break: break-word;
+}
+
+.view-value .empty {
+    color: #94a3b8;
+    font-style: italic;
+}
+
+/* ── Edit Mode: Input / Select / Textarea ─────────────────── */
+.form-group input,
+.form-group select,
+.form-group textarea {
+    padding: 8px 10px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 13px;
+    font-family: inherit;
+    outline: none;
+    width: 100%;
+    background: #fff;
+    color: #1e293b;
+    transition: border-color .15s, box-shadow .15s;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, .12);
+}
+
+.form-group textarea {
+    resize: vertical;
+    min-height: 80px;
+}
+
+/* ── Inline Field Validation Errors ───────────────────────── */
+.field-error-msg {
+    display: block;
+    color: #dc2626;
+    font-size: 11px;
+    font-weight: 600;
+    margin-top: 3px;
+}
+
+.form-group input.input-error,
+.form-group select.input-error,
+.form-group textarea.input-error,
+.dept-search-input.input-error {
+    border-color: #dc2626 !important;
+}
+
+.form-group input.input-error:focus,
+.form-group select.input-error:focus,
+.form-group textarea.input-error:focus,
+.dept-search-input.input-error:focus {
+    box-shadow: 0 0 0 2px rgba(220, 38, 38, .15);
+}
+
+.date-error {
+    display: block;
+    color: #dc2626;
+    font-size: 12px;
+    margin-top: 4px;
+}
+
+/* ── Section Group Label / Divider ───────────────────────── */
+.group-label {
+    grid-column: 1 / -1;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: #94a3b8;
+    margin-top: 4px;
+}
+
+.divider {
+    grid-column: 1 / -1;
+    border: none;
+    border-top: 1px dashed #e2e8f0;
+    margin: 6px 0;
+}
+
+/* ── Section-level Edit Controls ─────────────────────────── */
+.section-edit-controls {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+/* Locked / no-permission button (section-level and page-level variants) */
+.section-edit-btn.perm-locked,
+.btn-secondary.perm-locked {
+    opacity: .45;
+    cursor: not-allowed;
+    pointer-events: none;   /* prevent click */
+}
+
+/* Re-enable pointer events on the wrapper so the tooltip triggers */
+.perm-btn-wrapper {
+    position: relative;
+    display: inline-flex;
+}
+
+.perm-btn-wrapper[data-tooltip] .perm-locked {
+    pointer-events: none;
+}
+
+/* Tooltip */
+.perm-btn-wrapper::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: calc(100% + 8px);
+    right: 0;
+    background: #1e293b;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+    padding: 6px 10px;
+    border-radius: 7px;
+    pointer-events: none;
+    opacity: 0;
+    transform: translateY(4px);
+    transition: opacity .18s ease, transform .18s ease;
+    z-index: 100;
+    max-width: 240px;
+    white-space: normal;
+    text-align: center;
+    line-height: 1.4;
+}
+
+.perm-btn-wrapper::before {
+    content: "";
+    position: absolute;
+    bottom: calc(100% + 2px);
+    right: 14px;
+    border: 5px solid transparent;
+    border-top-color: #1e293b;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity .18s ease;
+    z-index: 101;
+}
+
+.perm-btn-wrapper:hover::after,
+.perm-btn-wrapper:hover::before {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Tooltip-below variant — for buttons near the top of the page (e.g. the
+   global Edit button) where there isn't enough room above for the
+   default upward tooltip, causing it to get clipped by the viewport. */
+.perm-btn-wrapper.tooltip-bottom::after {
+    bottom: auto;
+    top: calc(100% + 8px);
+    transform: translateY(-4px);
+}
+
+.perm-btn-wrapper.tooltip-bottom::before {
+    bottom: auto;
+    top: calc(100% + 2px);
+    border-top-color: transparent;
+    border-bottom-color: #1e293b;
+}
+
+.perm-btn-wrapper.tooltip-bottom:hover::after,
+.perm-btn-wrapper.tooltip-bottom:hover::before {
+    transform: translateY(0);
+}
+
+/* Section-restricted field visibility (toggled by JS) */
+.section-view-only { display: block; }
+.section-edit-only { display: none;  }
+
+/* Section edit-mode banner within a card */
+.section-editing-banner {
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 12px;
+    color: #1e40af;
+    margin-bottom: 12px;
+    grid-column: 1 / -1;
+}
+
+/* ── Collapsible Section Cards ───────────────────────────── */
+.collapsible-header {
+    cursor: pointer;
+    user-select: none;
+}
+
+.collapsible-header:hover {
+    background: #f8fafc;
+    border-radius: 8px;
+}
+
+.collapse-chevron {
+    margin-left: 8px;
+    flex-shrink: 0;
+    color: #94a3b8;
+    display: flex;
+    align-items: center;
+    transition: transform .25s ease;
+}
+
+.collapse-chevron svg {
+    width: 16px;
+    height: 16px;
+}
+
+/* Rotates chevron when collapsed */
+.section-card.collapsed .collapse-chevron {
+    transform: rotate(-90deg);
+}
+
+/* Body visibility with smooth animation */
+.section-body {
+    overflow: visible;
+    max-height: 2000px;
+    transition: max-height .3s ease, opacity .25s ease, margin-top .25s ease;
+    opacity: 1;
+    margin-top: 0;
+}
+
+.section-card.collapsed .section-body {
+    overflow: hidden;
+    max-height: 0;
+    opacity: 0;
+    margin-top: -4px;
+}
+
+/* Remove bottom padding on card when collapsed so it sits flush */
+.section-card.collapsed {
+    padding-bottom: 14px;
+}
+
+/* ── Searchable Combo Dropdown (Department / Vendor / Brand / etc.) ── */
+.dept-search-wrap {
+    position: relative;
+    width: 100%;
+}
+
+.dept-search-input {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 13px;
+    font-family: inherit;
+    outline: none;
+    background: #fff;
+    color: #1e293b;
+    transition: border-color .15s, box-shadow .15s;
+}
+
+.dept-search-input:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, .12);
+}
+
+.dept-dropdown {
+    display: none;
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0,0,0,.10);
+    z-index: 200;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.dept-dropdown.open {
+    display: block;
+}
+
+.dept-option {
+    padding: 9px 12px;
+    font-size: 13px;
+    color: #1e293b;
+    cursor: pointer;
+    transition: background .12s;
+}
+
+.dept-option:hover {
+    background: #eff6ff;
+    color: #2563eb;
+}
+
+.dept-option-empty {
+    color: #94a3b8;
+    font-style: italic;
+    cursor: default;
+}
+
+.dept-option-empty:hover {
+    background: none;
+    color: #94a3b8;
+}
+
+/* ── Search-combo clear (X) button — used by the End User search box
+   once an existing employee has been selected. Sits inside the input on
+   the right; the input itself gets extra right padding to leave room. ── */
+.eu-search-wrap #eu-name-search-input {
+    padding-right: 34px;
+}
+
+.eu-search-clear-btn {
+    position: absolute;
+    top: 50%;
+    right: 6px;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+    color: #64748b;
+    cursor: pointer;
+    z-index: 1;
+}
+
+.eu-search-clear-btn:hover {
+    background: #f1f5f9;
+    color: #334155;
+}
+
+.eu-search-clear-btn i {
+    width: 14px;
+    height: 14px;
+    pointer-events: none;
+}
+
+/* ── Peripheral / Program Checkboxes ─────────────────────── */
+.checkbox-group {
+    display: flex;
+    flex-wrap: wrap;
+    flex-direction: row;
+    gap: 0 4px;
+    padding: 6px 10px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    background: #fff;
+    min-height: 36px;
+    align-items: center;
+}
+
+.checkbox-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 13px;
+    color: #1e293b;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 4px;
+    white-space: nowrap;
+    user-select: none;
+}
+
+.checkbox-label:hover {
+    background: #f1f5f9;
+}
+
+.checkbox-label input[type="checkbox"] {
+    width: 14px;
+    height: 14px;
+    margin: 0;
+    padding: 0;
+    accent-color: #2563eb;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+/* ── Loading / Error State ────────────────────────────────── */
+.state-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 60px 20px;
+    color: #94a3b8;
+}
+
+.state-wrapper svg { width: 36px; height: 36px; }
+.state-wrapper p   { font-size: 14px; }
+
+/* ── Toast Notification ───────────────────────────────────── */
+#toast {
+    position: fixed;
+    bottom: 28px;
+    right: 28px;
+    background: #0f172a;
+    color: #fff;
+    padding: 12px 20px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transform: translateY(80px);
+    opacity: 0;
+    transition: transform .3s ease, opacity .3s ease;
+    z-index: 9999;
+    max-width: 320px;
+}
+
+#toast.show    { transform: translateY(0); opacity: 1; }
+#toast.success { background: #15803d; }
+#toast.error   { background: #dc2626; }
+
+/* ── Audit Log Button ─────────────────────────────────────── */
+.audit-log-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 16px;
+  border-radius: 999px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  color: #0f172a;
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+.audit-log-btn i {
+  width: 16px;
+  height: 16px;
+}
+.audit-log-btn:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #2563eb;
+}
+
+/* ── Confirm Modal (replaces window.confirm) ──────────────── */
+.confirm-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, .5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .15s ease;
+}
+
+.confirm-modal-overlay.open {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.confirm-modal {
+    background: #fff;
+    border-radius: 14px;
+    width: 100%;
+    max-width: 400px;
+    margin: 16px;
+    padding: 24px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, .25);
+    transform: translateY(8px) scale(.98);
+    transition: transform .15s ease;
+}
+
+.confirm-modal-overlay.open .confirm-modal {
+    transform: translateY(0) scale(1);
+}
+
+.confirm-modal-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 14px;
+    background: #eef2ff;
+    color: #2563eb;
+}
+
+.confirm-modal-icon.danger {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+.confirm-modal-icon i {
+    width: 20px;
+    height: 20px;
+}
+
+.confirm-modal-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #0f172a;
+    margin: 0 0 6px;
+}
+
+.confirm-modal-message {
+    font-size: 13px;
+    color: #64748b;
+    line-height: 1.5;
+    margin: 0 0 20px;
+}
+
+.confirm-modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.confirm-modal-actions button {
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    font-family: inherit;
+}
+
+.confirm-modal-cancel {
+    background: #fff;
+    color: #334155;
+    border: 1px solid #e2e8f0 !important;
+}
+
+.confirm-modal-cancel:hover {
+    background: #f8fafc;
+}
+
+.confirm-modal-confirm {
+    background: #2563eb;
+    color: #fff;
+}
+
+.confirm-modal-confirm:hover {
+    background: #1d4ed8;
+}
+
+.confirm-modal-confirm.danger {
+    background: #dc2626;
+}
+
+.confirm-modal-confirm.danger:hover {
+    background: #b91c1c;
+}

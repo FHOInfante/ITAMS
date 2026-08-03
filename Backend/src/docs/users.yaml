@@ -1,0 +1,700 @@
+paths:
+  /user:
+    get:
+      tags:
+        - Users
+      summary: Get all users
+      description: >
+        Returns a list of all registered user accounts in the system.
+
+
+        **Required Permission: 8 (View System Users)** — Accessible by: '**IT Manager**' and '**IT Supervisor**'
+
+
+        The permissions array on each user contains only active permissions. Permanent
+        permissions are always included. Temporary permissions are only included if the
+        current date and time falls within their valid_from and valid_to window.
+        Expired temporary permissions are excluded.
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: List of all user records.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/UserObject"
+              examples:
+                withMixedPermissions:
+                  summary: Users with a mix of permanent and active temporary permissions
+                  value:
+                    - user_id: 1
+                      user_name: Juan dela Cruz
+                      user_email: juan.delacruz@hospital.com
+                      user_emp_id: 1001
+                      user_username: juan.delacruz
+                      user_role: IT Manager
+                      user_status: Active
+                      permissions:
+                        - permission_id: 1
+                          is_temporary: false
+                          valid_from: null
+                          valid_to: null
+                        - permission_id: 13
+                          is_temporary: true
+                          valid_from: "2025-06-01 00:00:00"
+                          valid_to: "2025-06-30 23:59:59"
+                    - user_id: 2
+                      user_name: Maria Santos
+                      user_email: maria.santos@hospital.com
+                      user_emp_id: 1002
+                      user_username: maria.santos
+                      user_role: IT Helpdesk
+                      user_status: Active
+                      permissions:
+                        - permission_id: 1
+                          is_temporary: false
+                          valid_from: null
+                          valid_to: null
+                        - permission_id: 2
+                          is_temporary: false
+                          valid_from: null
+                          valid_to: null
+                withNoPermissions:
+                  summary: User with no permissions assigned
+                  value:
+                    - user_id: 3
+                      user_name: Pedro Reyes
+                      user_email: null
+                      user_emp_id: 1003
+                      user_username: pedro.reyes
+                      user_role: IT Helpdesk
+                      user_status: Inactive
+                      permissions: []
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  "/user/:id":
+    get:
+      tags:
+        - Users
+      summary: Get a single user by ID
+      description: >
+        Returns the full account details of a specific user by their user ID.
+
+
+        **Required Permission: 8 (View System Users)** — Accessible by: '**IT Manager**' and '**IT Supervisor**'
+
+
+        The permissions array contains only active permissions. Permanent permissions are
+        always included. Temporary permissions are only included if the current date and
+        time falls within their valid_from and valid_to window. Expired temporary
+        permissions are excluded.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: "**[REQUIRED]** The user_id of the target record."
+          schema:
+            type: integer
+          example: 1
+      responses:
+        "200":
+          description: User record found and returned.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserObject"
+              examples:
+                withPermanentPermissions:
+                  summary: User with permanent permissions only
+                  value:
+                    user_id: 1
+                    user_name: Juan dela Cruz
+                    user_email: juan.delacruz@hospital.com
+                    user_emp_id: 1001
+                    user_username: juan.delacruz
+                    user_role: IT Manager
+                    user_status: Active
+                    permissions:
+                      - permission_id: 1
+                        is_temporary: false
+                        valid_from: null
+                        valid_to: null
+                      - permission_id: 2
+                        is_temporary: false
+                        valid_from: null
+                        valid_to: null
+                withActiveTemporaryPermission:
+                  summary: User with an active temporary permission
+                  value:
+                    user_id: 4
+                    user_name: Ana Lim
+                    user_email: ana.lim@hospital.com
+                    user_emp_id: 1004
+                    user_username: ana.lim
+                    user_role: IT Helpdesk
+                    user_status: Active
+                    permissions:
+                      - permission_id: 1
+                        is_temporary: false
+                        valid_from: null
+                        valid_to: null
+                      - permission_id: 13
+                        is_temporary: true
+                        valid_from: "2025-06-01 00:00:00"
+                        valid_to: "2025-06-30 23:59:59"
+                withNoPermissions:
+                  summary: User with no permissions assigned
+                  value:
+                    user_id: 5
+                    user_name: Carlo Mendoza
+                    user_email: null
+                    user_emp_id: 1005
+                    user_username: carlo.mendoza
+                    user_role: IT Helpdesk
+                    user_status: Inactive
+                    permissions: []
+        "400":
+          description: "Bad Request — id is missing or not a valid integer."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              example:
+                message: "Missing user ID"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          description: "Not Found — No user exists with the provided ID."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              example:
+                message: "User not found"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+    patch:
+      tags:
+        - Users
+      summary: Update a user's email, role, and/or status
+      description: >
+        Consolidated partial-update endpoint for a system user account. Replaces
+        the previous separate status / role / username / details endpoints.
+        Exactly three fields are editable through this endpoint: user_email,
+        user_role, and user_status. At least one MUST be present in the request
+        body; any combination of the three, including all three at once, is
+        accepted. Fields omitted from the request body are left unchanged.
+
+
+        **Required Permission: 38 (Edit System User Account)** — Accessible by: '**IT Manager**' and '**IT Supervisor**'
+
+
+        user_username and user_name are NOT editable through this endpoint.
+        user_username is immutable for the lifetime of the account once set
+        at registration. user_name has been removed from the editable API
+        surface entirely as part of this consolidation.
+
+
+        The authenticated user cannot modify their own account through this
+        endpoint, regardless of which of the three fields are being changed.
+
+
+        Field-level behavior:
+
+
+        1. **user_email** — When provided, must either be a valid email address
+        or explicitly null to clear the field. Uniqueness is enforced
+        case-insensitively against every other account. Leading and trailing
+        whitespace is trimmed before validation and persistence.
+
+
+        2. **user_role** — When provided, must be one of the valid roles listed
+        below. Changing the role re-syncs the account's PERMANENT permission
+        set to match the new role's permission matrix: permissions the new role
+        includes that the user does not already hold permanently are granted,
+        and permanent permissions the new role does not include are revoked.
+        In addition, ALL of the account's currently active TEMPORARY
+        permissions are revoked unconditionally as part of the same change,
+        regardless of whether a given permission_id also appears in the new
+        role's permanent set. Temporary access is tied to the account's
+        PREVIOUS role/context and is never carried forward automatically; any
+        temporary access still needed under the new role must be re-granted
+        explicitly via POST /permission/grant.
+
+
+        3. **user_status** — When provided, must be one of: Active, Inactive.
+        Setting status to Inactive is treated as a full security reset of the
+        account: every permission the account holds is revoked (permanent AND
+        temporary alike, regardless of validity window, including temporary
+        permissions that are future-dated, currently active, or already
+        expired), and the account's login password is force-reset back to the
+        system default password, identical to what PATCH /user/:id/reset-password
+        does (is_password_default is set to true on the credential record).
+        Setting status to Active re-provisions the account's PERMANENT
+        permission set from scratch based on the EFFECTIVE role — the
+        just-updated user_role if one was also sent in this same request,
+        otherwise the account's existing role.
+
+
+        Combined role + status updates in a single request: if BOTH user_role
+        and user_status are sent together, the user_role side effect (permanent
+        permission re-sync + unconditional temporary permission wipe) is applied
+        FIRST, and the user_status side effect is applied LAST. This makes
+        user_status authoritative over whatever the role change just set up —
+        for example, sending user_role: "IT Manager" and user_status: "Inactive"
+        together will re-sync permissions to the IT Manager matrix and then
+        immediately wipe all of them back out again, leaving the account with
+        zero permissions and a default password, but with user_role
+        permanently recorded as IT Manager for the next time it is reactivated.
+
+
+        Valid Options (user_role): **IT Manager, IT Supervisor, Network Admin,
+        System Specialist, IT Helpdesk**
+
+
+        Valid Options (user_status): **Active, Inactive**
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: "**[REQUIRED]** The user_id of the target record."
+          schema:
+            type: integer
+          example: 2
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUserRequest"
+            examples:
+              updateEmailOnly:
+                summary: Update only the user_email
+                value:
+                  user_email: maria.santos.reyes@hospital.com
+              clearEmail:
+                summary: Explicitly clear the user_email field
+                value:
+                  user_email: null
+              updateRoleOnly:
+                summary: Update only the user_role
+                value:
+                  user_role: Network Admin
+              updateStatusOnly:
+                summary: Update only the user_status
+                value:
+                  user_status: Inactive
+              updateAllThreeFields:
+                summary: Update user_email, user_role, and user_status together
+                value:
+                  user_email: maria.santos.reyes@hospital.com
+                  user_role: IT Supervisor
+                  user_status: Active
+              promoteThenDeactivate:
+                summary: >
+                  user_role and user_status sent together — role sync runs
+                  first, then the Inactive status wipes every permission
+                  the role sync just granted
+                value:
+                  user_role: IT Manager
+                  user_status: Inactive
+              missingFields:
+                summary: None of the three editable fields provided (triggers 400)
+                value: {}
+              invalidEmail:
+                summary: Malformed user_email value (triggers 400)
+                value:
+                  user_email: not-an-email
+              invalidRole:
+                summary: Invalid user_role value (triggers 400)
+                value:
+                  user_role: Administrator
+              invalidStatus:
+                summary: Invalid user_status value (triggers 400)
+                value:
+                  user_status: Suspended
+              duplicateEmail:
+                summary: user_email already in use by another account (triggers 409)
+                value:
+                  user_email: juan.delacruz@hospital.com
+      responses:
+        "200":
+          description: >
+            User account updated successfully. The response message is
+            identical regardless of which fields were changed; refer to the
+            description above for the differing side effects of user_role and
+            user_status changes.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              example:
+                message: "User updated"
+        "400":
+          description: >
+            Bad Request — Missing user ID, none of user_email / user_role /
+            user_status provided, malformed user_email, invalid user_role
+            value, invalid user_status value, or attempting to update own
+            account.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              examples:
+                "Missing User ID":
+                  value:
+                    message: "Missing user ID"
+                "No Editable Fields Provided":
+                  value:
+                    message: "Missing required fields"
+                "Invalid Email":
+                  value:
+                    message: "Invalid user_email value"
+                "Invalid Role":
+                  value:
+                    message: "Invalid role value. Must be one of: IT Manager, IT Supervisor, Network Admin, System Specialist, IT Helpdesk"
+                "Invalid Status":
+                  value:
+                    message: "Invalid status value"
+                "Self Edit":
+                  value:
+                    message: "Unauthorized Access: Cannot edit own account"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          description: "Not Found — No user exists with the provided ID."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              example:
+                message: "User not found"
+        "409":
+          description: "Conflict — The submitted user_email is already in use by another account."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              example:
+                message: "Email already in use"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  "/user/:id/reset-password":
+    patch:
+      tags:
+        - Users
+      summary: Reset a user password to default
+      description: >
+        Resets the password of a target user account back to the system default.
+        The authenticated user cannot reset their own password through this endpoint.
+        is_password_default is set to true on the credential record.
+
+
+        **Required Permission: 41 (Reset System User Password)** — Accessible by: '**IT Manager**' and '**IT Supervisor**'
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: "**[REQUIRED]** The user_id of the target record."
+          schema:
+            type: integer
+          example: 2
+      responses:
+        "200":
+          description: Password reset to default successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              example:
+                message: "Password reset successfully"
+        "400":
+          description: "Bad Request — Missing or invalid user ID, or attempting to reset own password."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              examples:
+                "Missing Fields":
+                  value:
+                    message: "Missing required fields"
+                "Self Reset":
+                  value:
+                    message: "Unauthorized Access: Cannot reset own password"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          description: "Not Found — No user exists with the provided ID."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              example:
+                message: "User not found"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /user/password:
+    patch:
+      tags:
+        - Users
+      summary: Change own password
+      description: >
+        Allows the currently authenticated user to change their own account password.
+        No special permission is required beyond a valid token.
+
+
+        After a successful change, the password will no longer be flagged as a default password.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdatePasswordRequest"
+            examples:
+              validChange:
+                summary: Valid password change request
+                value:
+                  newPassword: NewSecureP@ss99
+              missingPassword:
+                summary: Missing newPassword field (triggers 400)
+                value: {}
+      responses:
+        "200":
+          description: Password changed successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              example:
+                message: "Password changed successfully"
+        "400":
+          description: "Bad Request — newPassword field is missing from the request body."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              example:
+                message: "Missing required fields"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: "Not Found — The authenticated user's account was not found in the system."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              example:
+                message: "User not found"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+components:
+  schemas:
+    PermissionEntry:
+      type: object
+      description: A single permission entry on a user account.
+      properties:
+        permission_id:
+          type: integer
+          description: The unique numeric identifier of the permission.
+          example: 1
+        is_temporary:
+          type: boolean
+          description: >
+            Indicates whether this permission is temporary. If true, the permission
+            is only valid within the valid_from and valid_to window.
+          example: false
+        valid_from:
+          type: string
+          nullable: true
+          description: >
+            Start of the validity window. Format: YYYY-MM-DD HH:MM:SS.
+            Null for permanent permissions.
+          example: null
+        valid_to:
+          type: string
+          nullable: true
+          description: >
+            End of the validity window. Format: YYYY-MM-DD HH:MM:SS.
+            Null for permanent permissions.
+          example: null
+
+    UserObject:
+      type: object
+      description: Full user account record as returned by GET endpoints.
+      properties:
+        user_id:
+          type: integer
+          description: The unique numeric identifier of the user.
+          example: 1
+        user_name:
+          type: string
+          description: >
+            Full name of the user. Read-only through this API — there is
+            currently no endpoint that allows this field to be edited.
+          example: Juan dela Cruz
+        user_email:
+          type: string
+          nullable: true
+          description: Email address of the user. Null if not provided during registration.
+          example: juan.delacruz@hospital.com
+        user_emp_id:
+          type: integer
+          description: >
+            Employee ID of the user. Immutable — set once at registration and
+            never editable afterward.
+          example: 1001
+        user_username:
+          type: string
+          nullable: true
+          description: >
+            The login username tied to the user's credential record. Immutable
+            — set once at registration and never editable afterward. Null in
+            the rare case where the user has no associated user_credential row.
+          example: juan.delacruz
+        user_role:
+          type: string
+          description: >
+            The assigned role of the user. One of:
+            **IT Manager, IT Supervisor, Network Admin, System Specialist, IT Helpdesk**
+          enum:
+            - IT Manager
+            - IT Supervisor
+            - Network Admin
+            - System Specialist
+            - IT Helpdesk
+          example: IT Manager
+        user_status:
+          type: string
+          description: "Current account status. One of: **Active, Inactive**"
+          enum:
+            - Active
+            - Inactive
+          example: Active
+        permissions:
+          type: array
+          description: >
+            List of active permissions assigned to the user. Includes all permanent
+            permissions and any temporary permissions currently within their valid
+            date range. Expired temporary permissions are excluded.
+          items:
+            $ref: "#/components/schemas/PermissionEntry"
+
+    UpdateUserRequest:
+      type: object
+      description: >
+        Partial-update payload for PATCH /user/:id. At least ONE of
+        user_email, user_role, or user_status **[REQUIRED]** must be present
+        in the request body. Any field omitted from the body is left
+        unchanged on the target account. user_username and user_name are not
+        part of this schema — neither is editable through this endpoint.
+      properties:
+        user_email:
+          type: string
+          nullable: true
+          description: >
+            The new email address to assign. Must be a valid email format
+            when provided, or explicitly null to clear the field. Must be
+            unique case-insensitively across all accounts. Leading and
+            trailing whitespace is trimmed before validation.
+          example: maria.santos.reyes@hospital.com
+        user_role:
+          type: string
+          description: >
+            The new role to assign. Must be one of: **IT Manager,
+            IT Supervisor, Network Admin, System Specialist, IT Helpdesk**.
+            Triggers a re-sync of the account's permanent permission set and
+            an unconditional wipe of its active temporary permissions.
+          enum:
+            - IT Manager
+            - IT Supervisor
+            - Network Admin
+            - System Specialist
+            - IT Helpdesk
+          example: IT Manager
+        user_status:
+          type: string
+          description: >
+            The new status to assign. Must be one of: **Active, Inactive**.
+            Setting Inactive revokes every permission and resets the password
+            to the system default. Setting Active re-provisions permanent
+            permissions from the effective role.
+          enum:
+            - Active
+            - Inactive
+          example: Active
+
+    UpdatePasswordRequest:
+      type: object
+      required:
+        - newPassword
+      properties:
+        newPassword:
+          type: string
+          description: "**[REQUIRED]** The new password to set for the authenticated user's account."
+          example: NewSecureP@ss99
+
+    MessageResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "Operation successful"
+
+  responses:
+    Unauthorized:
+      description: "Unauthorized — No token provided or the token is invalid/expired."
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/MessageResponse"
+          examples:
+            noToken:
+              summary: No token provided
+              value:
+                message: "Unauthorized Access: No Token Provided"
+            invalidToken:
+              summary: Token is invalid or expired
+              value:
+                message: "Unauthorized Access: Invalid Token"
+    Forbidden:
+      description: "Forbidden — Authenticated but the user lacks the required permission."
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/MessageResponse"
+          example:
+            message: "Forbidden: Insufficient permissions"
+    InternalError:
+      description: "Internal Server Error — An unexpected server-side error occurred."
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/MessageResponse"
+          example:
+            message: "Something went wrong"

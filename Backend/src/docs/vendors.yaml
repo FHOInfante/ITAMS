@@ -1,0 +1,269 @@
+paths:
+  /vendor:
+    get:
+      summary: Get all vendors
+      description: >
+        Returns a list of all vendors in the system, ordered alphabetically
+        by vendor name.
+
+
+        Required permission: Authenticated user (bearer token). No specific permission number required for read access.
+      tags:
+        - Vendors
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: List of vendors retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Vendor"
+              example:
+                - vendor_id: 4
+                  vendor_name: "Dell Technologies"
+                - vendor_id: 11
+                  vendor_name: "HP Incorporated"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              examples:
+                noToken:
+                  value:
+                    message: "Unauthorized Access: No Token Provided"
+                invalidToken:
+                  value:
+                    message: "Unauthorized Access: Invalid Token"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              example:
+                message: "Something went wrong"
+
+    post:
+      summary: Add a new vendor
+      description: >
+        Creates a new vendor record. The vendor name must be unique
+        (case-insensitive match against existing vendor names).
+
+
+        **Required Permission: 19 (Add New Vendor)** — Accessible by: '**IT Manager**' and '**IT Supervisor**'
+
+
+        Required fields (NOT NULL): vendorName
+      tags:
+        - Vendors
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VendorInput"
+            examples:
+              validVendor:
+                summary: Valid new vendor
+                value:
+                  vendorName: "Lenovo Group Limited"
+              missingName:
+                summary: Missing vendorName field entirely — triggers 400
+                value: {}
+              emptyName:
+                summary: Empty string vendorName — triggers 400
+                value:
+                  vendorName: ""
+              whitespaceOnlyName:
+                summary: Whitespace-only vendorName — triggers 400
+                value:
+                  vendorName: "   "
+              duplicateName:
+                summary: Vendor name already exists (case-insensitive) — triggers 409
+                value:
+                  vendorName: "dell technologies"
+      responses:
+        "201":
+          description: Vendor added successfully
+          content:
+            application/json:
+              example:
+                message: "Vendor added successfully"
+        "400":
+          description: Missing or invalid vendorName
+          content:
+            application/json:
+              example:
+                message: "Missing or invalid vendorName"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              examples:
+                noToken:
+                  value:
+                    message: "Unauthorized Access: No Token Provided"
+                invalidToken:
+                  value:
+                    message: "Unauthorized Access: Invalid Token"
+        "403":
+          description: Forbidden — User does not have permission 19 (Add Vendor) and is not an IT Manager or IT Supervisor
+          content:
+            application/json:
+              example:
+                message: "Forbidden: Insufficient permissions"
+        "409":
+          description: Conflict — Vendor name already exists (case-insensitive)
+          content:
+            application/json:
+              example:
+                message: "A vendor with this name already exists"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              example:
+                message: "Something went wrong"
+
+  "/vendor/:id":
+    put:
+      summary: Update a vendor's name
+      description: >
+        Updates the name of an existing vendor. If the new name matches the
+        current name (case-insensitive), the uniqueness check is skipped and
+        the update proceeds normally. Otherwise, the new name must not
+        conflict with any other existing vendor name (case-insensitive).
+
+
+        **Required Permission: 35 (Edit Vendor Details)** — Accessible by: '**IT Manager**' and '**IT Supervisor**'
+
+
+        Required fields (NOT NULL): vendorName
+      tags:
+        - Vendors
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+          description: The vendor_id of the vendor to update
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VendorInput"
+            examples:
+              validUpdate:
+                summary: Rename to a new unique name
+                value:
+                  vendorName: "Lenovo Group Limited"
+              sameNameUpdate:
+                summary: Updating with the same name (case-insensitive match — no conflict check triggered)
+                value:
+                  vendorName: "dell technologies"
+              conflictingName:
+                summary: Name already taken by another vendor (case-insensitive) — triggers 409
+                value:
+                  vendorName: "HP Incorporated"
+              notFoundVendor:
+                summary: Vendor ID does not exist — triggers 404
+                value:
+                  vendorName: "ASUS"
+              missingName:
+                summary: Missing vendorName field entirely — triggers 400
+                value: {}
+              emptyName:
+                summary: Empty string vendorName — triggers 400
+                value:
+                  vendorName: ""
+              whitespaceOnlyName:
+                summary: Whitespace-only vendorName — triggers 400
+                value:
+                  vendorName: "   "
+              zeroId:
+                summary: Path ID is 0 or non-numeric — triggers 400
+                value:
+                  vendorName: "Acer Incorporated"
+      responses:
+        "200":
+          description: Vendor updated successfully
+          content:
+            application/json:
+              example:
+                message: "Vendor updated successfully"
+        "400":
+          description: Missing or invalid input
+          content:
+            application/json:
+              examples:
+                missingId:
+                  summary: Path ID is 0 or non-numeric
+                  value:
+                    message: "Missing vendor ID"
+                missingName:
+                  summary: vendorName is absent, empty, or whitespace-only
+                  value:
+                    message: "Missing or invalid vendorName"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              examples:
+                noToken:
+                  value:
+                    message: "Unauthorized Access: No Token Provided"
+                invalidToken:
+                  value:
+                    message: "Unauthorized Access: Invalid Token"
+        "403":
+          description: Forbidden — User does not have permission 35 (Edit Vendor) and is not an IT Manager or IT Supervisor
+          content:
+            application/json:
+              example:
+                message: "Forbidden: Insufficient permissions"
+        "404":
+          description: Not Found — No vendor exists with the given ID
+          content:
+            application/json:
+              example:
+                message: "Vendor not found"
+        "409":
+          description: Conflict — Vendor name already exists (case-insensitive)
+          content:
+            application/json:
+              example:
+                message: "A vendor with this name already exists"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              example:
+                message: "Something went wrong"
+
+components:
+  schemas:
+    VendorInput:
+      type: object
+      required:
+        - vendorName
+      properties:
+        vendorName:
+          type: string
+          description: >
+            Name of the vendor. Must be unique (case-insensitive match
+            against all existing vendor names). REQUIRED.
+
+    Vendor:
+      type: object
+      properties:
+        vendor_id:
+          type: integer
+        vendor_name:
+          type: string

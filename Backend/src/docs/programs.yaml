@@ -1,0 +1,260 @@
+paths:
+  /program:
+    get:
+      summary: Get all programs
+      description: >
+        Returns a list of all program types in the system, ordered alphabetically
+        by program name. Programs represent the software titles that come
+        pre-installed on a computer (e.g., Microsoft Office, Adobe Acrobat
+        Reader, Google Chrome), and are linked to computer records via the
+        computer_program junction table.
+
+
+        Required permission: Authenticated user (bearer token). No specific permission number required for read access.
+      tags:
+        - Programs
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: List of programs retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Program"
+              example:
+                - program_id: 3
+                  program_name: "Adobe Acrobat Reader"
+                - program_id: 2
+                  program_name: "Google Chrome"
+                - program_id: 1
+                  program_name: "Microsoft Office"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              examples:
+                noToken:
+                  value:
+                    message: "Unauthorized Access: No Token Provided"
+                invalidToken:
+                  value:
+                    message: "Unauthorized Access: Invalid Token"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              example:
+                message: "Something went wrong"
+
+    post:
+      summary: Add a new program type
+      description: >
+        Creates a new program type. The program name must be unique across
+        all existing programs (exact match, case-insensitive conflict check
+        at the application level; the DB enforces a UNIQUE constraint).
+
+
+        **Required Permission: 17 (Add New Program)** — Accessible by: '**IT Manager**' and '**IT Supervisor**'
+
+
+        Required fields (NOT NULL): programName
+      tags:
+        - Programs
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProgramInput"
+            examples:
+              validProgram:
+                summary: Valid new program
+                value:
+                  programName: "VLC Media Player"
+              missingName:
+                summary: Missing programName - triggers 400
+                value: {}
+              emptyName:
+                summary: Empty string - triggers 400
+                value:
+                  programName: ""
+              whitespaceOnlyName:
+                summary: Whitespace-only string - triggers 400
+                value:
+                  programName: "   "
+              duplicateName:
+                summary: Program name already exists - triggers 409
+                value:
+                  programName: "Microsoft Office"
+      responses:
+        "201":
+          description: Program added successfully
+          content:
+            application/json:
+              example:
+                message: "Program added successfully"
+        "400":
+          description: Missing or invalid programName
+          content:
+            application/json:
+              example:
+                message: "Missing or invalid programName"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              examples:
+                noToken:
+                  value:
+                    message: "Unauthorized Access: No Token Provided"
+                invalidToken:
+                  value:
+                    message: "Unauthorized Access: Invalid Token"
+        "403":
+          description: Forbidden - User does not have permission 14 (File Maintenance)
+          content:
+            application/json:
+              example:
+                message: "Forbidden: Insufficient permissions"
+        "409":
+          description: Conflict - Program name already exists
+          content:
+            application/json:
+              example:
+                message: "A program with this name already exists"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              example:
+                message: "Something went wrong"
+
+  "/program/:id":
+    put:
+      summary: Update a program's name
+      description: >
+        Updates the name of an existing program. If the new name matches the
+        current name (case-insensitive), the uniqueness check is skipped.
+        Otherwise, the new name must not conflict with any other existing
+        program.
+
+
+        **Required Permission: 33 (Edit Program Details)** — Accessible by: '**IT Manager**' and '**IT Supervisor**'
+
+
+        Required fields (NOT NULL): programName
+      tags:
+        - Programs
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+          description: The program_id of the program to update
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProgramInput"
+            examples:
+              validUpdate:
+                summary: Rename to a new unique name
+                value:
+                  programName: "7-Zip"
+              sameNameUpdate:
+                summary: Updating with the same name (no conflict check triggered)
+                value:
+                  programName: "Microsoft Office"
+              conflictingName:
+                summary: Name already taken by another program - triggers 409
+                value:
+                  programName: "Google Chrome"
+              notFoundProgram:
+                summary: Program ID does not exist - triggers 404
+                value:
+                  programName: "Notepad++"
+              missingName:
+                summary: Missing programName - triggers 400
+                value: {}
+      responses:
+        "200":
+          description: Program updated successfully
+          content:
+            application/json:
+              example:
+                message: "Program updated successfully"
+        "400":
+          description: Missing or invalid input
+          content:
+            application/json:
+              examples:
+                missingId:
+                  summary: Path ID is 0 or non-numeric
+                  value:
+                    message: "Missing program ID"
+                missingName:
+                  value:
+                    message: "Missing or invalid programName"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              examples:
+                noToken:
+                  value:
+                    message: "Unauthorized Access: No Token Provided"
+                invalidToken:
+                  value:
+                    message: "Unauthorized Access: Invalid Token"
+        "403":
+          description: Forbidden - User does not have permission 14 (File Maintenance)
+          content:
+            application/json:
+              example:
+                message: "Forbidden: Insufficient permissions"
+        "404":
+          description: Not Found — Program not found
+          content:
+            application/json:
+              example:
+                message: "Program not found"
+        "409":
+          description: Conflict - Program name already exists
+          content:
+            application/json:
+              example:
+                message: "A program with this name already exists"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              example:
+                message: "Something went wrong"
+
+components:
+  schemas:
+    ProgramInput:
+      type: object
+      required:
+        - programName
+      properties:
+        programName:
+          type: string
+          description: Name of the program type. Must be unique. REQUIRED.
+
+    Program:
+      type: object
+      properties:
+        program_id:
+          type: integer
+        program_name:
+          type: string

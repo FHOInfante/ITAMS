@@ -1,0 +1,1111 @@
+components:
+  schemas:
+    PurchaseRequestItem:
+      type: object
+      description: A single line item belonging to a purchase request, as returned by GET endpoints.
+      properties:
+        item_id:
+          type: integer
+          description: Auto-generated primary key of the line item.
+          example: 1
+        pr_id:
+          type: integer
+          description: Foreign key referencing the parent purchase request's pr_id.
+          example: 1
+        item_description:
+          type: string
+          description: Description of the item being procured.
+          example: "Ink cartridge, black, Brother LC-3719XL"
+        item_quantity:
+          type: integer
+          minimum: 1
+          description: Number of units requested. Must be at least 1.
+          example: 10
+        unit_price:
+          type: number
+          format: float
+          minimum: 0
+          description: Cost per unit. Must be zero or greater.
+          example: 350.00
+        is_received:
+          type: boolean
+          description: >
+            Whether this specific line item has been received.
+
+            Automatically forced to true for every item on a purchase
+            request the moment that purchase request's pr_status is set to
+            "Received" via PATCH /purchase-request/:id.
+
+            Outside of that, this reflects either the isReceived value
+            submitted for the item at PR creation time (false if omitted),
+            or false for any item added afterwards via
+            POST /purchase-request/:id.
+
+            **Once this value is true, it can no longer be changed and the
+            item can no longer be deleted.** An item can only ever transition
+            from false to true, one-way, via PATCH /purchase-request/item/:id.
+          example: false
+
+    PurchaseRequestObject:
+      type: object
+      description: Full purchase request record as returned by GET endpoints.
+      properties:
+        pr_id:
+          type: integer
+          example: 1
+        pr_no:
+          type: integer
+          description: Official PR number. Must be unique across all purchase requests.
+          example: 202400001
+        pr_status:
+          type: string
+          enum:
+            - Received
+            - In Process
+            - On Hold
+            - Cancelled
+          description: >
+            Current processing status of the purchase request. A purchase
+            request is created with this defaulted to "In Process" and can
+            only be changed afterwards via PATCH /purchase-request/:id.
+
+            **Once a purchase request's status is "Received" or "Cancelled",
+            it can no longer be edited in any way** — its header fields
+            cannot be changed, its items cannot be added to or deleted, and
+            its items' is_received flags can no longer be toggled.
+          example: "In Process"
+        date_requested:
+          type: string
+          format: date
+          description: Date the purchase request was filed. Set at creation and immutable afterwards.
+          example: "2024-03-01"
+        date_received:
+          type: string
+          format: date
+          nullable: true
+          description: >
+            Date the goods were received. Editable via
+            PATCH /purchase-request/:id. If still null when this purchase
+            request's last outstanding item is individually marked received
+            via PATCH /purchase-request/item/:id, it is automatically
+            backfilled with that day's date — see that endpoint's
+            description for details.
+          example: "2024-03-15"
+        requested_by:
+          type: string
+          description: Free-text name of the person who requested the purchase.
+          example: "Juan Dela Cruz"
+        received_by:
+          type: string
+          nullable: true
+          description: >
+            Free-text name of the person who received the goods. Editable
+            via PATCH /purchase-request/:id. If still null when this
+            purchase request's last outstanding item is individually marked
+            received via PATCH /purchase-request/item/:id, it is
+            automatically backfilled — see that endpoint's description for
+            details.
+          example: "Maria Santos"
+        remarks:
+          type: string
+          nullable: true
+          example: "Urgent — needed for ICU restocking"
+        items:
+          type: array
+          description: >
+            Line items belonging to this purchase request. This array is
+            always present; it is empty only in the edge case of a PR whose
+            last item was removed through a direct DB operation (the API
+            itself always keeps at least one item per PR — see
+            DELETE /purchase-request/item/:id).
+          items:
+            $ref: "#/components/schemas/PurchaseRequestItem"
+
+    PurchaseRequestItemInput:
+      type: object
+      description: >
+        A line item submitted as part of PurchaseRequestCreateRequest
+        (POST /purchase-request). item_id is never supplied by the caller —
+        it is auto-generated.
+      required:
+        - itemDescription
+        - itemQuantity
+        - unitPrice
+      properties:
+        itemDescription:
+          type: string
+          description: "**[REQUIRED]** Description of the item being procured."
+          example: "Ink cartridge, black, Brother LC-3719XL"
+        itemQuantity:
+          type: integer
+          minimum: 1
+          description: "**[REQUIRED]** Number of units. Must be a positive integer."
+          example: 10
+        unitPrice:
+          type: number
+          format: float
+          minimum: 0
+          description: "**[REQUIRED]** Cost per unit. Must be zero or greater."
+          example: 350.00
+        isReceived:
+          type: boolean
+          nullable: true
+          description: >
+            Optional. Whether this specific line item has already been
+            received at the time the PR is filed. Defaults to false if
+            omitted. Must be a boolean value when provided (a non-boolean
+            value returns a 400 error).
+
+            Since a newly created purchase request always starts at
+            pr_status "In Process", this value is honored exactly as
+            submitted — it is not overridden at creation time. To later mark
+            an item as received, use PATCH /purchase-request/item/:id, or set
+            the parent PR's status to "Received" via
+            PATCH /purchase-request/:id, which forces every item to received.
+          example: false
+
+    NewPurchaseRequestItemInput:
+      type: object
+      description: >
+        A line item submitted through POST /purchase-request/:id to add a new
+        item to an existing purchase request. Unlike
+        PurchaseRequestItemInput, this shape has no isReceived field — items
+        added after the fact always start as not received, since "already
+        received on arrival" only makes sense at the time the PR itself is
+        first filed.
+      required:
+        - itemDescription
+        - itemQuantity
+        - unitPrice
+      properties:
+        itemDescription:
+          type: string
+          description: "**[REQUIRED]** Description of the item being procured."
+          example: "Toner cartridge, black, HP CF283A"
+        itemQuantity:
+          type: integer
+          minimum: 1
+          description: "**[REQUIRED]** Number of units. Must be a positive integer."
+          example: 5
+        unitPrice:
+          type: number
+          format: float
+          minimum: 0
+          description: "**[REQUIRED]** Cost per unit. Must be zero or greater."
+          example: 3200.00
+
+    PurchaseRequestCreateRequest:
+      type: object
+      required:
+        - prNo
+        - dateRequested
+        - requestedBy
+        - items
+      properties:
+        prNo:
+          type: integer
+          description: "**[REQUIRED]** Official PR number. Must be unique across all purchase requests."
+          example: 202400001
+        dateRequested:
+          type: string
+          format: date
+          description: "**[REQUIRED]** Date the purchase request is being filed. Format: YYYY-MM-DD."
+          example: "2024-03-01"
+        requestedBy:
+          type: string
+          description: "**[REQUIRED]** Free-text name of the person who filed the purchase request."
+          example: "Juan Dela Cruz"
+        remarks:
+          type: string
+          nullable: true
+          description: Optional. Free-text notes or remarks about this purchase request.
+          example: "Urgent — needed for ICU restocking"
+        items:
+          type: array
+          description: >
+            **[REQUIRED]** Line items for this purchase request. Must contain
+            at least one entry — a purchase request can never be created
+            without items. Additional items can be added later via
+            POST /purchase-request/:id.
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/PurchaseRequestItemInput"
+
+    PurchaseRequestAddItemsRequest:
+      description: >
+        Request body for POST /purchase-request/:id. Accepts **either** a
+        single item object **or** a JSON array of item objects, to support
+        adding one or multiple items to an existing purchase request in a
+        single call.
+      oneOf:
+        - $ref: "#/components/schemas/NewPurchaseRequestItemInput"
+        - type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/NewPurchaseRequestItemInput"
+
+    PurchaseRequestPatchRequest:
+      type: object
+      description: >
+        Request body for PATCH /purchase-request/:id. This is a partial
+        update — every field is individually optional, but **at least one**
+        of them must be present. prNo and dateRequested are immutable after
+        creation and are not part of this shape.
+      properties:
+        prStatus:
+          type: string
+          nullable: true
+          description: >
+            Optional. New processing status for the purchase request. Must
+            be one of: **Received**, **In Process**, **On Hold**,
+            **Cancelled**.
+
+            Setting this to **"Received" forces every one of this PR's line
+            items to is_received = true**, regardless of their prior state.
+
+            This field has no effect if the request is rejected because the
+            purchase request's *current* status is already "Received" or
+            "Cancelled" — see the 409 responses below.
+          enum:
+            - Received
+            - In Process
+            - On Hold
+            - Cancelled
+          example: "Received"
+        requestedBy:
+          type: string
+          nullable: true
+          description: Optional. Updated free-text name of the person who filed the purchase request. Must be a non-empty string when provided.
+          example: "Juan Dela Cruz"
+        receivedBy:
+          type: string
+          nullable: true
+          description: Optional. Free-text name of the person who received the goods. Send null to clear an existing value.
+          example: "Maria Santos"
+        dateReceived:
+          type: string
+          format: date
+          nullable: true
+          description: "Optional. Date the goods were received. Format: YYYY-MM-DD. Send null to clear an existing value."
+          example: "2024-03-15"
+        remarks:
+          type: string
+          nullable: true
+          description: Optional. Free-text notes or remarks about this purchase request. Send null to clear an existing value.
+          example: "All items received in good condition."
+
+    MessageResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "Operation successful"
+
+    PurchaseRequestItemReceivedResponse:
+      type: object
+      description: Response body for PATCH /purchase-request/item/:id.
+      properties:
+        message:
+          type: string
+          example: "Purchase request item marked as received"
+        prAutoCompleted:
+          type: boolean
+          description: >
+            True if marking this item as received also caused its parent
+            purchase request to be automatically transitioned to
+            pr_status "Received" (because this was the last outstanding
+            item on that PR). False if the parent PR still has other
+            unreceived items remaining.
+          example: false
+
+  responses:
+    Unauthorized:
+      description: "Unauthorized — No token provided or the token is invalid/expired."
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/MessageResponse"
+          examples:
+            noToken:
+              summary: No token provided
+              value:
+                message: "Unauthorized Access: No Token Provided"
+            invalidToken:
+              summary: Token is invalid or expired
+              value:
+                message: "Unauthorized Access: Invalid Token"
+
+    Forbidden:
+      description: "Forbidden — Authenticated but the user does not have the required permission."
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/MessageResponse"
+          example:
+            message: "Forbidden: Insufficient permissions"
+
+    NotFound:
+      description: "Not Found — No purchase request exists with the given ID."
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/MessageResponse"
+          example:
+            message: "Purchase request not found"
+
+    InternalError:
+      description: "Internal Server Error — An unexpected server-side error occurred."
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/MessageResponse"
+          example:
+            message: "Something went wrong"
+
+paths:
+  /purchase-request:
+    get:
+      tags:
+        - Purchase Requests
+      summary: Get all purchase requests
+      description: >
+        Returns a list of all purchase request records. Each record includes
+        the header-level PR fields and a nested items array containing all
+        associated line items.
+
+
+        **Required Permission: 7 (View Purchase Requests)** — Accessible by: '**IT Manager**', '**IT Supervisor**', and '**System Specialist**'
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: List of all purchase request records.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PurchaseRequestObject"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+    post:
+      tags:
+        - Purchase Requests
+      summary: Add a new purchase request
+      description: >
+        Creates a new purchase request along with its initial line items in a
+        single request. The items array is required and must contain at
+        least one entry — a purchase request can never be created without at
+        least one item.
+
+
+        The new purchase request always starts at pr_status **"In Process"**;
+        prStatus cannot be set at creation time. To change its status
+        afterwards, use PATCH /purchase-request/:id. To add further items
+        later, use POST /purchase-request/:id.
+
+
+        Line items are inserted as separate rows in the purchase_request_item
+        table and linked to the newly created PR by pr_id.
+
+
+        **Required Permission: 14 (Create Purchase Requests)** — Accessible by: '**IT Manager**', '**IT Supervisor**', and '**System Specialist**'
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PurchaseRequestCreateRequest"
+            examples:
+              minimal:
+                summary: "Minimal — required fields only, single item"
+                description: The bare minimum to create a valid PR. remarks is omitted (null).
+                value:
+                  prNo: 202400001
+                  dateRequested: "2024-03-01"
+                  requestedBy: "Juan Dela Cruz"
+                  items:
+                    - itemDescription: "Ink cartridge, black, Brother LC-3719XL"
+                      itemQuantity: 10
+                      unitPrice: 350.00
+
+              withRemarks:
+                summary: "With optional remarks filled in"
+                value:
+                  prNo: 202400002
+                  dateRequested: "2024-03-05"
+                  requestedBy: "Pedro Reyes"
+                  remarks: "For the new nurses' station on the 4th floor."
+                  items:
+                    - itemDescription: "Thermal paper roll, 80mm"
+                      itemQuantity: 50
+                      unitPrice: 45.00
+                    - itemDescription: "Ballpen, black, Pilot G2"
+                      itemQuantity: 100
+                      unitPrice: 22.50
+
+              multipleItems:
+                summary: "Multiple line items with mixed unit prices"
+                value:
+                  prNo: 202400003
+                  dateRequested: "2024-04-01"
+                  requestedBy: "Ana Lim"
+                  items:
+                    - itemDescription: "USB Flash Drive 32GB"
+                      itemQuantity: 20
+                      unitPrice: 250.00
+                    - itemDescription: "HDMI Cable 1.8m"
+                      itemQuantity: 5
+                      unitPrice: 180.00
+                    - itemDescription: "Ethernet Cable Cat6 (per meter)"
+                      itemQuantity: 100
+                      unitPrice: 35.00
+
+              zeroUnitPrice:
+                summary: "Item with zero unit price (donated or issued at no cost)"
+                description: unitPrice can be 0.00 for items that are received at no charge.
+                value:
+                  prNo: 202400004
+                  dateRequested: "2024-05-01"
+                  requestedBy: "IT Department"
+                  items:
+                    - itemDescription: "Sample unit — Epson L3210 (evaluation)"
+                      itemQuantity: 1
+                      unitPrice: 0.00
+
+              partiallyPreReceivedItems:
+                summary: "PR with some items already individually received"
+                description: >
+                  A new PR always starts "In Process", so each item's
+                  isReceived value is honored as submitted. The toner
+                  (already in stock) is saved with is_received = true while
+                  the drum unit — still awaiting delivery — is saved with
+                  is_received = false.
+                value:
+                  prNo: 202400005
+                  dateRequested: "2024-05-10"
+                  requestedBy: "Liza Fernandez"
+                  remarks: "Toner was already on hand; drum unit still on order."
+                  items:
+                    - itemDescription: "Toner cartridge, black, HP CF283A"
+                      itemQuantity: 5
+                      unitPrice: 3200.00
+                      isReceived: true
+                    - itemDescription: "Drum unit, HP CF232A"
+                      itemQuantity: 2
+                      unitPrice: 5400.00
+                      isReceived: false
+
+      responses:
+        "201":
+          description: Purchase request created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              example:
+                message: "Purchase request added successfully"
+        "400":
+          description: >
+            Bad Request. Possible causes:
+
+            - One or more required fields are missing (prNo, dateRequested, requestedBy, items).
+
+            - items is not an array, is empty, or an entry is missing itemDescription,
+              itemQuantity, or unitPrice.
+
+            - itemQuantity is not a positive number.
+
+            - unitPrice is a negative number.
+
+            - isReceived is provided on an item but is not a boolean.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              examples:
+                missingFields:
+                  summary: One or more required header fields are absent
+                  value:
+                    message: "Missing required fields"
+                itemsNotArray:
+                  summary: items field is absent, empty, or not an array
+                  value:
+                    message: "At least one item is required"
+                itemsMissingFields:
+                  summary: A line item is missing one of its required fields
+                  value:
+                    message: "Each item must have itemDescription, itemQuantity, and unitPrice"
+                itemQuantityInvalid:
+                  summary: itemQuantity is zero or not a number
+                  value:
+                    message: "itemQuantity must be a positive number"
+                unitPriceInvalid:
+                  summary: unitPrice is negative
+                  value:
+                    message: "unitPrice must be a non-negative number"
+                itemIsReceivedInvalid:
+                  summary: An item's isReceived value was provided but is not a boolean
+                  value:
+                    message: "isReceived must be a boolean value when provided"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  "/purchase-request/{id}":
+    get:
+      tags:
+        - Purchase Requests
+      summary: Get a single purchase request by ID
+      description: >
+        Returns the full details of a specific purchase request record,
+        including its nested line items array.
+
+
+        **Required Permission: 7 (View Purchase Requests)** — Accessible by: '**IT Manager**', '**IT Supervisor**', and '**System Specialist**'
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: "**[REQUIRED]** The pr_id of the target purchase request."
+          schema:
+            type: integer
+          example: 1
+      responses:
+        "200":
+          description: Purchase request found and returned.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PurchaseRequestObject"
+        "400":
+          description: "Bad Request — The id path parameter is missing or not a valid integer."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              example:
+                message: "Missing purchase request ID"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+    post:
+      tags:
+        - Purchase Requests
+      summary: Add item(s) to an existing purchase request
+      description: >
+        Appends one or more new line items to an existing purchase request.
+        Accepts either a single item object or a JSON array of item objects
+        in the request body, so both single and bulk additions are supported
+        through the same endpoint.
+
+
+        Newly added items always start with is_received = false — there is
+        no isReceived field on this request body (compare with
+        PurchaseRequestItemInput, used only at PR creation time).
+
+
+        **This endpoint is rejected with a 409 if the target purchase
+        request's pr_status is "Received" or "Cancelled"**, since those are
+        terminal states and the PR can no longer be modified.
+
+
+        **Required Permission: 14 (Create Purchase Requests)** — Accessible by: '**IT Manager**', '**IT Supervisor**', and '**System Specialist**'
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: "**[REQUIRED]** The pr_id of the purchase request to add item(s) to."
+          schema:
+            type: integer
+          example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PurchaseRequestAddItemsRequest"
+            examples:
+              singleItem:
+                summary: "Add a single item"
+                value:
+                  itemDescription: "Network switch, TP-Link TL-SG108"
+                  itemQuantity: 3
+                  unitPrice: 1800.00
+
+              multipleItems:
+                summary: "Add multiple items in one call (JSON array)"
+                value:
+                  - itemDescription: "USB Flash Drive 32GB"
+                    itemQuantity: 20
+                    unitPrice: 250.00
+                  - itemDescription: "HDMI Cable 1.8m"
+                    itemQuantity: 5
+                    unitPrice: 180.00
+
+              zeroUnitPrice:
+                summary: "Item added at zero cost (donated or issued at no charge)"
+                value:
+                  itemDescription: "Sample unit — Epson L3210 (evaluation)"
+                  itemQuantity: 1
+                  unitPrice: 0.00
+
+      responses:
+        "201":
+          description: Purchase request item(s) added successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              example:
+                message: "Purchase request item(s) added successfully"
+        "400":
+          description: >
+            Bad Request. Possible causes:
+
+            - The id path parameter is missing or not a valid integer.
+
+            - The request body is not an object, an array, or is an empty array.
+
+            - An item entry is missing itemDescription, itemQuantity, or unitPrice.
+
+            - itemQuantity is not a positive number.
+
+            - unitPrice is a negative number.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              examples:
+                missingId:
+                  summary: id path parameter is missing or invalid
+                  value:
+                    message: "Missing purchase request ID"
+                itemsNotArray:
+                  summary: Request body is absent, empty, or not an object/array
+                  value:
+                    message: "At least one item is required"
+                itemsMissingFields:
+                  summary: A line item is missing one of its required fields
+                  value:
+                    message: "Each item must have itemDescription, itemQuantity, and unitPrice"
+                itemQuantityInvalid:
+                  summary: itemQuantity is zero or not a number
+                  value:
+                    message: "itemQuantity must be a positive number"
+                unitPriceInvalid:
+                  summary: unitPrice is negative
+                  value:
+                    message: "unitPrice must be a non-negative number"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: "Conflict — The purchase request's current status no longer allows edits."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              examples:
+                received:
+                  summary: PR status is Received
+                  value:
+                    message: 'Cannot add items to a purchase request with status "Received"'
+                cancelled:
+                  summary: PR status is Cancelled
+                  value:
+                    message: 'Cannot add items to a purchase request with status "Cancelled"'
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+    patch:
+      tags:
+        - Purchase Requests
+      summary: Edit a purchase request's status and/or header details
+      description: >
+        Partially updates a purchase request. Any combination of prStatus,
+        requestedBy, receivedBy, dateReceived, and remarks may be supplied,
+        but **at least one field is required**. Fields that are omitted are
+        left unchanged. prNo and dateRequested are immutable and cannot be
+        edited through this or any other endpoint.
+
+
+        **Setting prStatus to "Received" forces every line item under this
+        PR to is_received = true**, overriding each item's individual state.
+
+
+        **This endpoint is rejected with a 409 if the purchase request's
+        *current* pr_status is already "Received" or "Cancelled"** — both are
+        terminal states and the PR can no longer be edited once reached,
+        including reverting the status itself.
+
+
+        **Required Permission: 37 (Edit Purchase Requests)** — Accessible by: '**IT Manager**', '**IT Supervisor**', and '**System Specialist**'
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: "**[REQUIRED]** The pr_id of the purchase request to update."
+          schema:
+            type: integer
+          example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PurchaseRequestPatchRequest"
+            examples:
+              markReceived:
+                summary: "Mark as Received and record receipt details"
+                description: >
+                  Common edit: the PR was filed as In Process and is now
+                  updated to Received after the goods arrive. This forces
+                  every one of its items to is_received = true.
+                value:
+                  prStatus: "Received"
+                  dateReceived: "2024-03-15"
+                  receivedBy: "Maria Santos"
+                  remarks: "All items received in good condition."
+
+              statusOnly:
+                summary: "Change status only, no other fields"
+                value:
+                  prStatus: "On Hold"
+
+              placeOnHold:
+                summary: "Place a PR on hold pending budget approval"
+                value:
+                  prStatus: "On Hold"
+                  remarks: "Awaiting budget clearance from Finance."
+
+              cancelPr:
+                summary: "Cancel a purchase request"
+                value:
+                  prStatus: "Cancelled"
+                  remarks: "Budget request denied."
+
+              updateRequestedByOnly:
+                summary: "Correct the requestedBy name without touching status"
+                value:
+                  requestedBy: "Juana Dela Cruz"
+
+              clearRemarks:
+                summary: "Clear a previously set remarks value"
+                value:
+                  remarks: null
+
+      responses:
+        "200":
+          description: Purchase request updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              example:
+                message: "Purchase request updated successfully"
+        "400":
+          description: >
+            Bad Request. Possible causes:
+
+            - The id path parameter is missing or not a valid integer.
+
+            - None of prStatus, requestedBy, receivedBy, dateReceived, or remarks were provided.
+
+            - prStatus is not one of: Received, In Process, On Hold, Cancelled.
+
+            - requestedBy is provided but is not a non-empty string.
+
+            - receivedBy is provided (and not null) but is not a non-empty string.
+
+            - dateReceived is provided (and not null) but is not a string.
+
+            - remarks is provided (and not null) but is not a string.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              examples:
+                missingId:
+                  summary: id path parameter is missing or invalid
+                  value:
+                    message: "Missing purchase request ID"
+                noFieldsProvided:
+                  summary: Request body did not include any editable field
+                  value:
+                    message: "At least one of prStatus, requestedBy, receivedBy, dateReceived, or remarks must be provided"
+                invalidStatus:
+                  summary: prStatus is not one of the allowed enum values
+                  value:
+                    message: "Invalid PR status value"
+                invalidRequestedBy:
+                  summary: requestedBy is not a non-empty string
+                  value:
+                    message: "requestedBy must be a non-empty string when provided"
+                invalidReceivedBy:
+                  summary: receivedBy is not a non-empty string or null
+                  value:
+                    message: "receivedBy must be a non-empty string or null when provided"
+                invalidDateReceived:
+                  summary: dateReceived is not a string or null
+                  value:
+                    message: "dateReceived must be a date string or null when provided"
+                invalidRemarks:
+                  summary: remarks is not a string or null
+                  value:
+                    message: "remarks must be a string or null when provided"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: "Conflict — The purchase request's current status no longer allows edits."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              examples:
+                received:
+                  summary: PR status is already Received
+                  value:
+                    message: 'Cannot edit a purchase request with status "Received"'
+                cancelled:
+                  summary: PR status is already Cancelled
+                  value:
+                    message: 'Cannot edit a purchase request with status "Cancelled"'
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  "/purchase-request/item/{id}":
+    patch:
+      tags:
+        - Purchase Requests
+      summary: Mark a single purchase request item as received
+      description: >
+        Sets is_received to true for one specific purchase request line item.
+        This endpoint takes no request body — it only ever moves an item
+        from not-received to received.
+
+
+        This is a targeted, partial update — no other fields of the line
+        item (item_description, item_quantity, unit_price) are affected.
+
+
+        Typical use case: a PR has multiple line items and only some of them
+        have physically arrived. The PR header itself may remain "In
+        Process" while individual items are marked received as they come in.
+
+
+        **Auto-completion:** if marking this item as received leaves zero
+        outstanding (not-received) items on its parent purchase request,
+        that purchase request is automatically transitioned to pr_status
+        **"Received"** as part of this same request. When that happens:
+
+        - date_received is backfilled with the current date, **only if it
+          was still null** (a value already set via
+          PATCH /purchase-request/:id is left untouched).
+
+        - received_by is backfilled with the current user, **only if it
+          was still null** (a value already set via
+          PATCH /purchase-request/:id is left untouched).
+
+        - The response's prAutoCompleted field is set to true so the caller
+          can tell this happened without re-fetching the PR.
+
+        If other items on the PR are still unreceived, none of the above
+        happens — only this single item's is_received flag changes, and
+        prAutoCompleted is returned as false.
+
+
+        **This endpoint is rejected with a 409 if the item is already
+        received** (is_received is already true — it cannot be reverted
+        back to false through this or any other endpoint), **or if the
+        parent purchase request's pr_status is "Received" or "Cancelled"**.
+
+
+        **Required Permission: 37 (Edit Purchase Requests)** — Accessible by: '**IT Manager**', '**IT Supervisor**', and '**System Specialist**'
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: "**[REQUIRED]** The item_id of the target purchase request line item."
+          schema:
+            type: integer
+          example: 1
+      responses:
+        "200":
+          description: Purchase request item marked as received.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PurchaseRequestItemReceivedResponse"
+              examples:
+                itemReceivedOnly:
+                  summary: "Item marked received; other items on the PR are still outstanding"
+                  value:
+                    message: "Purchase request item marked as received"
+                    prAutoCompleted: false
+                lastItemAutoCompletesPr:
+                  summary: "This was the last outstanding item — parent PR auto-marked as Received"
+                  value:
+                    message: "Purchase request item marked as received. All items are now received — purchase request automatically marked as Received."
+                    prAutoCompleted: true
+        "400":
+          description: "Bad Request — The id path parameter is missing or not a valid integer."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              example:
+                message: "Missing purchase request item ID"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          description: "Not Found — No purchase request item exists with the given ID."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              example:
+                message: "Purchase request item not found"
+        "409":
+          description: "Conflict — The item is already received, or its parent purchase request can no longer be edited."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              examples:
+                alreadyReceived:
+                  summary: Item is already marked as received
+                  value:
+                    message: "This item is already marked as received and can no longer be edited"
+                parentPrReceived:
+                  summary: Parent purchase request status is Received
+                  value:
+                    message: 'Cannot update items on a purchase request with status "Received"'
+                parentPrCancelled:
+                  summary: Parent purchase request status is Cancelled
+                  value:
+                    message: 'Cannot update items on a purchase request with status "Cancelled"'
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+    delete:
+      tags:
+        - Purchase Requests
+      summary: Delete a single purchase request item
+      description: >
+        Permanently removes one line item from its parent purchase request.
+
+
+        **Received items can never be deleted** — once is_received is true
+        on an item, it is permanent for the lifetime of the record.
+
+
+        **A purchase request must always retain at least one item** — if the
+        target item is the only one remaining on its PR, the deletion is
+        rejected rather than leaving the PR with zero items. To remove the
+        last item, cancel the entire purchase request instead via
+        PATCH /purchase-request/:id.
+
+
+        **This endpoint is rejected with a 409 if the parent purchase
+        request's pr_status is "Received" or "Cancelled"**.
+
+
+        **Required Permission: 37 (Edit Purchase Requests)** — Accessible by: '**IT Manager**', '**IT Supervisor**', and '**System Specialist**'
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: "**[REQUIRED]** The item_id of the target purchase request line item."
+          schema:
+            type: integer
+          example: 2
+      responses:
+        "200":
+          description: Purchase request item deleted successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              example:
+                message: "Purchase request item deleted successfully"
+        "400":
+          description: "Bad Request — The id path parameter is missing or not a valid integer."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              example:
+                message: "Missing purchase request item ID"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          description: "Not Found — No purchase request item exists with the given ID."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              example:
+                message: "Purchase request item not found"
+        "409":
+          description: "Conflict — The item cannot be deleted in its current state."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              examples:
+                alreadyReceived:
+                  summary: Item is already marked as received
+                  value:
+                    message: "Received items cannot be deleted"
+                parentPrReceived:
+                  summary: Parent purchase request status is Received
+                  value:
+                    message: 'Cannot delete items from a purchase request with status "Received"'
+                parentPrCancelled:
+                  summary: Parent purchase request status is Cancelled
+                  value:
+                    message: 'Cannot delete items from a purchase request with status "Cancelled"'
+                onlyRemainingItem:
+                  summary: This is the last remaining item on the PR
+                  value:
+                    message: "Cannot delete the only remaining item on a purchase request"
+        "500":
+          $ref: "#/components/responses/InternalError"

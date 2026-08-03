@@ -1,0 +1,170 @@
+.summary-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.card-group {
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+    padding: 0;
+    overflow: hidden;
+}
+
+.card-group-item {
+    flex: 1;
+    padding: 20px;
+    text-align: center;
+    min-width: 0;
+}
+
+.card-group-divider {
+    width: 1px;
+    background: #f0f0f0;
+    margin: 12px 0;
+    flex-shrink: 0;
+}
+
+@media (max-width: 1200px) {
+    .summary-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+    .card-group {
+        grid-column: 1 / -1;
+    }
+}
+
+.summary-grid-2{
+    grid-template-columns: repeat(2, 1fr);
+}
+
+.summary-grid-4{
+    grid-template-columns: repeat(4, 1fr);
+}
+
+.modal-content{
+    width:760px;
+    height:780px;
+    max-width:calc(100vw - 40px);
+    max-height:calc(100vh - 40px);
+    display:flex;
+    flex-direction:column;
+    overflow:hidden;
+    background:white;
+    border-radius:14px;
+}
+
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+.combo-wrapper { position: relative; }
+
+.combo-wrapper .combo-input {
+    padding: 8px 10px;
+    border: 1px solid #dbe3ef;
+    border-radius: 9px;
+    font-size: 13px;
+    color: #0f172a;
+    outline: none;
+    width: 100%;
+    font-family: Arial, sans-serif;
+}
+
+.combo-wrapper .combo-input:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37,99,235,.1);
+}
+
+.combo-list {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 9px;
+    max-height: 180px;
+    overflow-y: auto;
+    z-index: 9999;
+    list-style: none;
+    padding: 4px 0;
+    box-shadow: 0 8px 24px rgba(0,0,0,.1);
+}
+
+.combo-list li {
+    padding: 8px 12px;
+    font-size: 13px;
+    cursor: pointer;
+    color: #334155;
+}
+
+.combo-list li:hover,
+.combo-list li.highlighted { background: #eff6ff; color: #1d4ed8; }
+
+.combo-list li.no-match { color: #94a3b8; cursor: default; font-style: italic; }
+
+/* Base styles for .perm-btn-wrapper now live in assetsSharedStyle.css.
+   This adds the network-devices-specific pointer cursor. */
+.perm-btn-wrapper {
+    cursor: pointer;
+}
+
+.perm-denied-overlay {
+    z-index: 1100;
+}
+
+.perm-denied-dialog {
+    background: #fff;
+    border-radius: 14px;
+    padding: 28px 28px 24px;
+    width: 400px;
+    max-width: calc(100vw - 40px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.18);
+    text-align: center;
+}
+
+.perm-denied-icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: #fef2f2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #dc2626;
+    flex-shrink: 0;
+}
+
+.perm-denied-body {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.perm-denied-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: #0f172a;
+    margin: 0;
+}
+
+.perm-denied-message {
+    font-size: 13px;
+    color: #64748b;
+    margin: 0;
+    line-height: 1.6;
+}
+
+.perm-denied-message strong {
+    color: #0f172a;
+    font-weight: 700;
+}
+
+.perm-denied-actions {
+    width: 100%;
+}

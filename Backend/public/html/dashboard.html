@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard</title>
+
+    <link rel="stylesheet" href="../css/sidebar.css">
+
+    <script src="../script/dashboard.js" defer></script>
+    <link rel="icon" type="image/png" href="/assets/itd-logo-tab.png">
+</head>
+<body>
+
+  <div class="app-layout">
+
+      <div id="sidebarContainer"></div>
+
+      <!-- MAIN -->
+      <main class="main-content">
+
+          <!-- TOPBAR -->
+          <div class="topbar">
+              <h1 class="topbar-header">IT Asset Dashboard</h1>
+          </div>
+
+          <!-- DASHBOARD CONTENT -->
+          <div class="dashboard-content">
+
+              <section class="hero-card">
+                  <div>
+                      <h1></h1>
+                      <p>Live operational view of infrastructure and assets.</p>
+                  </div>
+
+                  <div id="serverList"></div>
+              </section>
+
+              <section class="stats-grid" id="statsGrid"></section>
+
+              <section class="card">
+                  <h2>Software Renewals</h2>
+                  <div id="softwareList"></div>
+              </section>
+
+          </div>
+
+      </main>
+
+  </div>
+
+  <script>
+      lucide.createIcons();
+  </script>
+
+      <script src="https://unpkg.com/lucide@latest"></script>
+      <script src="../script/sidebar.js" defer></script>
+
+</body>
+</html>

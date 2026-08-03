@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>IT Asset Management Login</title>
+
+  <link rel="stylesheet" href="css/style.css" />
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link rel="icon" type="image/png" href="/assets/itd-logo-tab.png">
+ 
+</head>
+<body>
+
+  <main class="main-container">
+    <section class="login-wrapper">
+
+      <!-- LEFT PANEL -->
+      <div class="left-panel">
+
+        <div class="circle circle-1"></div>
+        <div class="circle circle-2"></div>
+        <div class="circle circle-3"></div>
+
+        <div class="icon-grid">
+          <div class="icon-tile"><i data-lucide="monitor"></i></div>
+          <div class="icon-tile"><i data-lucide="cpu"></i></div>
+          <div class="icon-tile"><i data-lucide="smartphone"></i></div>
+          <div class="icon-tile"><i data-lucide="database"></i></div>
+        </div>
+
+        <div class="left-content">
+          <h1>IT Asset Management</h1>
+          <p>
+            Securely manage assets, users, and IT operations in one internal system.
+          </p>
+        </div>
+
+      </div>
+
+      <!-- RIGHT PANEL -->
+      <div class="right-panel">
+
+        <div class="form-container">
+
+          <!-- LOGO -->
+          <div class="brand">
+            <div class="logo-box">
+              <img src="assets/itd-logo.png" alt="IT Asset Management Logo" />
+            </div>
+
+            <div>
+              <p class="brand-title">IT Asset Management</p>
+            </div>
+          </div>
+
+          <!-- WELCOME -->
+          <div class="welcome-text">
+            <h2>Welcome Back</h2>
+            <p>Sign in with your username</p>
+          </div>
+
+          <!-- FORM -->
+          <form id="loginForm">
+
+            <div class="error-box hidden" id="errorBox">
+              <i data-lucide="alert-circle"></i>
+              <span id="errorText">Something went wrong.</span>
+            </div>
+
+            <label>
+                <span>Username</span>
+
+                <div class="input-box">
+                <input
+                    type="text"
+                    id="username"
+                    placeholder="Enter your username"
+                />
+                </div>
+            </label>
+
+            <label>
+                <span>Password</span>
+
+                <div class="input-box">
+                <input
+                    type="password"
+                    id="password"
+                    placeholder="Enter your password"
+                />
+                </div>
+            </label>
+
+            <button type="submit" class="signin-btn">
+                Sign In
+            </button>
+
+        </form>
+          </div>
+
+        </div>
+
+      </div>
+
+    </section>
+  </main>
+
+  <script>
+    lucide.createIcons();
+  </script>
+
+   <script src="script/login.js"></script>
+
+</body>
+
+
+</html>

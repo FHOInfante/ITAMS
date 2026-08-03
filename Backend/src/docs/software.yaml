@@ -1,0 +1,878 @@
+paths:
+  /software:
+    get:
+      summary: Retrieve all software records
+      description: >
+        Returns a list of all software license records in the system, including assigned end user details.
+
+
+        Required permission: Authenticated user (bearer token). No specific permission number required for read access.
+      tags:
+        - Software
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: List of software records retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SoftwareRecord"
+              examples:
+                success:
+                  summary: Software list with mixed assignment states
+                  value:
+                    - software_id: 1
+                      software_name: "Microsoft Office 365"
+                      vendor: "Microsoft"
+                      license_type: "Subscription"
+                      purchase_date: "2023-01-15"
+                      subscription_id: "MSO365-00123"
+                      renewal_date: "2025-01-15"
+                      expiry_date: "2025-01-15"
+                      cost: 12500.00
+                      previous_cost: 11000.00
+                      software_status: "Active"
+                      remarks: "Enterprise license"
+                      assigned_date: "2023-02-01"
+                      assigned_user_id: 3
+                      assigned_user_name: "Juan Dela Cruz"
+                      assigned_user_emp_id: 10042
+                    - software_id: 2
+                      software_name: "Adobe Acrobat Pro"
+                      vendor: "Adobe"
+                      license_type: "Perpetual"
+                      purchase_date: "2022-06-10"
+                      subscription_id: null
+                      renewal_date: "2024-06-10"
+                      expiry_date: "2024-06-10"
+                      cost: 8000.00
+                      previous_cost: null
+                      software_status: "Expired"
+                      remarks: null
+                      assigned_date: null
+                      assigned_user_id: null
+                      assigned_user_name: null
+                      assigned_user_emp_id: null
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    post:
+      summary: Add a new software record
+      description: >
+        Creates a new software license record. **subscriptionId** is optional and may be omitted or sent as **null**
+        (e.g. for freeware or perpetual licenses that have no subscription reference).
+
+
+        **renewalDate** is no longer part of the request body. It is automatically set equal to **expiryDate** at the
+        time of creation.
+
+
+        **softwareStatus** is optional. If it is omitted, it is automatically computed from **expiryDate**: if the
+        expiry date is 90 days away or less, the status becomes '**For Renewal**'; if the expiry date is on or before
+        today, the status becomes '**Expired**'; otherwise the status becomes '**Active**'. The only value that may be
+        set manually is '**Discontinued**' — sending Active, For Renewal, or Expired explicitly is rejected. A recurring
+        daily database event also re-evaluates and refreshes the status of every non-Discontinued software record, so
+        statuses stay accurate over time even without further API calls.
+
+
+        Optionally assigns it to an end user on creation. If **euEmpId** is provided, all end user fields
+        (**euName**, **euDivision**, **euDepartment**, **euLocation**, **euEmail**, **euContactNo**) are required for a new end user, or only
+        **euEmpId** and **assignedDate** are needed if the end user already exists.
+        Assignment is blocked if the end user has a Resigned status.
+
+
+        **Important:** If **euEmpId** already belongs to an existing end user, any other end user fields
+        also included in the payload are silently ignored — the existing end user's stored details are
+        never overwritten as a side effect of assigning software to them.
+
+
+        **Required Permission: 10 (Add Asset - Software)** — Accessible by: '**IT Manager**' and '**IT Supervisor**'
+      tags:
+        - Software
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SoftwareCreateBody"
+            examples:
+              withoutAssignment:
+                summary: Add software without assigning an end user (status auto-computed as Active)
+                value:
+                  softwareName: "Microsoft Office 365"
+                  vendor: "Microsoft"
+                  licenseType: "Subscription"
+                  purchaseDate: "2024-01-15"
+                  subscriptionId: "MSO365-00123"
+                  expiryDate: "2028-01-15"
+                  cost: 12500.00
+                  previousCost: 11000.00
+                  remarks: "Enterprise license"
+              nullSubscriptionId:
+                summary: Add a perpetual license with no subscriptionId and no cost
+                value:
+                  softwareName: "7-Zip"
+                  vendor: "Igor Pavlov"
+                  licenseType: "Freeware"
+                  purchaseDate: "2024-02-01"
+                  subscriptionId: null
+                  expiryDate: "2028-02-01"
+              withExistingUser:
+                summary: Add software and assign to an existing end user
+                value:
+                  softwareName: "Adobe Acrobat Pro"
+                  vendor: "Adobe"
+                  licenseType: "Perpetual"
+                  purchaseDate: "2024-03-01"
+                  subscriptionId: "ADB-PRO-00456"
+                  expiryDate: "2028-03-01"
+                  cost: 8000.00
+                  euEmpId: 10042
+                  assignedDate: "2024-03-05"
+              withNewUser:
+                summary: Add software and create a new end user assignment
+                value:
+                  softwareName: "Slack Business+"
+                  vendor: "Salesforce"
+                  licenseType: "Subscription"
+                  purchaseDate: "2024-05-01"
+                  subscriptionId: "SLACK-B-00789"
+                  expiryDate: "2028-05-01"
+                  cost: 3500.00
+                  euEmpId: 10099
+                  assignedDate: "2024-05-03"
+                  euName: "Maria Santos"
+                  euDivision: "Finance"
+                  euDepartment: "Accounting"
+                  euLocation: "3F"
+                  euEmail: "m.santos@hospital.com"
+                  euContactNo: "09171234567"
+              soonToExpire:
+                summary: Add software with an expiryDate within 90 days (status auto-computed as For Renewal)
+                value:
+                  softwareName: "Zoom Business"
+                  vendor: "Zoom Video Communications"
+                  licenseType: "Subscription"
+                  purchaseDate: "2023-08-01"
+                  subscriptionId: "ZOOM-BIZ-00321"
+                  expiryDate: "2026-08-15"
+                  cost: 4200.00
+              manualDiscontinued:
+                summary: Add a legacy license record and manually mark it as Discontinued
+                value:
+                  softwareName: "Windows Server 2012 CAL"
+                  vendor: "Microsoft"
+                  licenseType: "Perpetual"
+                  purchaseDate: "2015-01-10"
+                  subscriptionId: null
+                  expiryDate: "2023-01-10"
+                  softwareStatus: "Discontinued"
+                  remarks: "End of life; retained for audit reference"
+      responses:
+        "201":
+          description: Software added successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              examples:
+                success:
+                  summary: Created
+                  value:
+                    message: "Software added successfully"
+        "400":
+          description: Validation error — missing fields, invalid values, end user resolution failure, or end user is Resigned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              examples:
+                missingFields:
+                  summary: Missing required fields
+                  value:
+                    message: "Missing required fields"
+                invalidCost:
+                  summary: Invalid cost
+                  value:
+                    message: "Invalid cost value"
+                invalidPreviousCost:
+                  summary: Invalid previous cost
+                  value:
+                    message: "Invalid previousCost value"
+                invalidSubscriptionId:
+                  summary: Invalid subscriptionId (wrong type or blank string)
+                  value:
+                    message: "Invalid subscriptionId value"
+                invalidStatus:
+                  summary: Attempted to manually set an auto-computed status
+                  value:
+                    message: "Invalid software status value. Only 'Discontinued' can be set manually; other statuses are determined automatically based on the expiry date."
+                invalidDate:
+                  summary: Invalid date format
+                  value:
+                    message: "Invalid date format. Use YYYY-MM-DD"
+                endUserNotFound:
+                  summary: End user not found and registration fields are missing
+                  value:
+                    message: "End user not found. Please provide euName, euDivision, euDepartment, and euLocation to register them."
+                resignedEndUser:
+                  summary: The end user is Resigned and cannot be assigned assets
+                  value:
+                    message: "Cannot assign assets to a Resigned end user"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  "/software/:id":
+    get:
+      summary: Retrieve a software record by ID
+      description: >
+        Returns a single software license record by its ID, including assigned end user details.
+
+
+        Required permission: Authenticated user (bearer token). No specific permission number required for read access.
+      tags:
+        - Software
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: The software ID
+      responses:
+        "200":
+          description: Software record retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SoftwareRecord"
+              examples:
+                assigned:
+                  summary: Software with assigned user
+                  value:
+                    software_id: 1
+                    software_name: "Microsoft Office 365"
+                    vendor: "Microsoft"
+                    license_type: "Subscription"
+                    purchase_date: "2023-01-15"
+                    subscription_id: "MSO365-00123"
+                    renewal_date: "2025-01-15"
+                    expiry_date: "2025-01-15"
+                    cost: 12500.00
+                    previous_cost: 11000.00
+                    software_status: "Active"
+                    remarks: "Enterprise license"
+                    assigned_date: "2023-02-01"
+                    assigned_user_id: 3
+                    assigned_user_name: "Juan Dela Cruz"
+                    assigned_user_emp_id: 10042
+                unassigned:
+                  summary: Software with no assigned user
+                  value:
+                    software_id: 2
+                    software_name: "Adobe Acrobat Pro"
+                    vendor: "Adobe"
+                    license_type: "Perpetual"
+                    purchase_date: "2022-06-10"
+                    subscription_id: null
+                    renewal_date: "2024-06-10"
+                    expiry_date: "2024-06-10"
+                    cost: 8000.00
+                    previous_cost: null
+                    software_status: "Expired"
+                    remarks: null
+                    assigned_date: null
+                    assigned_user_id: null
+                    assigned_user_name: null
+                    assigned_user_emp_id: null
+        "400":
+          description: Missing or invalid software ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              examples:
+                missingId:
+                  summary: Missing ID
+                  value:
+                    message: "Missing software ID"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          description: Not Found — Software not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              examples:
+                notFound:
+                  summary: Not found
+                  value:
+                    message: "Software not found"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    put:
+      summary: Edit a software record
+      description: >
+        Updates all fields of an existing software record. If **euEmpId** is omitted entirely,
+        the existing end user assignment is preserved. To unassign an end user, send **euEmpId** as **null**.
+        Assignment is blocked if the end user has a Resigned status.
+
+
+        **Important:** If **euEmpId** already belongs to an existing end user, any euName, euDivision,
+        euDepartment, euLocation, euEmail, or euContactNo also included in the payload are silently
+        ignored — the existing end user's stored details are never overwritten by this endpoint.
+
+
+        **renewalDate** is no longer part of the request body. It is automatically set equal to **expiryDate**
+        every time the record is updated.
+
+
+        **softwareStatus** is optional. If it is omitted on update, the status is **recomputed** from **expiryDate**
+        using the same rule as creation (Active / For Renewal / Expired) — it is not simply left as-is. To keep a
+        record marked '**Discontinued**', **softwareStatus: "Discontinued"** must be explicitly sent on every update;
+        otherwise the status will be recalculated from the expiry date. Sending Active, For Renewal, or Expired
+        explicitly is rejected.
+
+
+        **Required Permission: 25 (Edit Asset - Software)** — Accessible by: '**IT Manager**' and '**IT Supervisor**'
+      tags:
+        - Software
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: The software ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SoftwareCreateBody"
+            examples:
+              preserveAssignment:
+                summary: Update software fields without touching assignment (status auto-recomputed)
+                value:
+                  softwareName: "Microsoft Office 365"
+                  vendor: "Microsoft"
+                  licenseType: "Subscription"
+                  purchaseDate: "2023-01-15"
+                  subscriptionId: "MSO365-00123"
+                  expiryDate: "2027-01-15"
+                  cost: 13500.00
+                  previousCost: 12500.00
+                  remarks: "Renewed for 2027"
+              reassign:
+                summary: Update and reassign to a different end user
+                value:
+                  softwareName: "Microsoft Office 365"
+                  vendor: "Microsoft"
+                  licenseType: "Subscription"
+                  purchaseDate: "2023-01-15"
+                  subscriptionId: "MSO365-00123"
+                  expiryDate: "2027-01-15"
+                  cost: 13500.00
+                  euEmpId: 10055
+                  assignedDate: "2026-06-01"
+              unassignAndDiscontinue:
+                summary: Update, unassign end user, and manually mark as Discontinued
+                value:
+                  softwareName: "Microsoft Office 365"
+                  vendor: "Microsoft"
+                  licenseType: "Subscription"
+                  purchaseDate: "2023-01-15"
+                  subscriptionId: "MSO365-00123"
+                  expiryDate: "2027-01-15"
+                  cost: 13500.00
+                  softwareStatus: "Discontinued"
+                  euEmpId: null
+      responses:
+        "200":
+          description: Software updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              examples:
+                success:
+                  summary: Updated
+                  value:
+                    message: "Software updated successfully"
+        "400":
+          description: Validation error — missing fields, invalid values, or end user is Resigned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              examples:
+                missingId:
+                  summary: Missing software ID
+                  value:
+                    message: "Missing software ID"
+                missingFields:
+                  summary: Missing required fields
+                  value:
+                    message: "Missing required fields"
+                invalidCost:
+                  summary: Invalid cost
+                  value:
+                    message: "Invalid cost value"
+                invalidPreviousCost:
+                  summary: Invalid previous cost
+                  value:
+                    message: "Invalid previousCost value"
+                invalidSubscriptionId:
+                  summary: Invalid subscriptionId (wrong type or blank string)
+                  value:
+                    message: "Invalid subscriptionId value"
+                invalidStatus:
+                  summary: Attempted to manually set an auto-computed status
+                  value:
+                    message: "Invalid software status value. Only 'Discontinued' can be set manually; other statuses are determined automatically based on the expiry date."
+                invalidDate:
+                  summary: Invalid date format
+                  value:
+                    message: "Invalid date format. Use YYYY-MM-DD"
+                resignedEndUser:
+                  summary: The end user is Resigned and cannot be assigned assets
+                  value:
+                    message: "Cannot assign assets to a Resigned end user"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          description: Not Found — Software not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              examples:
+                notFound:
+                  summary: Not found
+                  value:
+                    message: "Software not found"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  "/software/:id/assign":
+    patch:
+      summary: Assign or unassign an end user from a software record
+      description: >
+        Assigns an end user to a software record or unassigns the current user
+        by sending **euEmpId** as **null**. If **euEmpId** is provided and the
+        end user does not exist, all end user fields (**euName**,
+        **euDivision**, **euDepartment**, **euLocation**) are required to create
+        a new record.
+        Assignment is blocked if the end user has a Resigned status.
+
+
+        **Important:** If **euEmpId** already belongs to an existing end user, any other end user
+        fields included in the payload (**euName**, **euDivision**, **euDepartment**, **euLocation**,
+        **euEmail**, **euContactNo**) are silently ignored — the existing end user's stored details
+        are never overwritten as a side effect of an assignment.
+
+
+        **Required Permission: 23 (Assign Asset - Software)** — Accessible by: '**IT Manager**' and '**IT Supervisor**'
+      tags:
+        - Software
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: The software ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SoftwareAssignBody"
+            examples:
+              assignExisting:
+                summary: Assign to an existing end user
+                value:
+                  euEmpId: 10042
+                  assignedDate: "2024-06-01"
+              assignNew:
+                summary: Assign to a new end user
+                value:
+                  euEmpId: 10099
+                  assignedDate: "2024-06-01"
+                  euName: "Maria Santos"
+                  euDivision: "Finance"
+                  euDepartment: "Accounting"
+                  euLocation: "3F"
+                  euEmail: "m.santos@hospital.com"
+                  euContactNo: "09171234567"
+              unassign:
+                summary: Unassign current end user
+                value:
+                  euEmpId: null
+      responses:
+        "200":
+          description: Software assigned or unassigned successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              examples:
+                assigned:
+                  summary: Assigned
+                  value:
+                    message: "Software assigned successfully"
+                unassigned:
+                  summary: Unassigned
+                  value:
+                    message: "Software unassigned successfully"
+        "400":
+          description: Validation error, end user resolution failure, or end user is Resigned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              examples:
+                missingId:
+                  summary: Missing software ID
+                  value:
+                    message: "Missing software ID"
+                missingAssignedDate:
+                  summary: Missing assignedDate when euEmpId is provided
+                  value:
+                    message: "Missing required fields"
+                endUserNotFound:
+                  summary: End user not found and registration fields are missing
+                  value:
+                    message: "End user not found. Please provide euName, euDivision, euDepartment, and euLocation to register them."
+                resignedEndUser:
+                  summary: The end user is Resigned and cannot be assigned assets
+                  value:
+                    message: "Cannot assign assets to a Resigned end user"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          description: Not Found — Software not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              examples:
+                notFound:
+                  summary: Not found
+                  value:
+                    message: "Software not found"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+components:
+  schemas:
+    SoftwareRecord:
+      type: object
+      properties:
+        software_id:
+          type: integer
+          example: 1
+        software_name:
+          type: string
+          example: "Microsoft Office 365"
+        vendor:
+          type: string
+          example: "Microsoft"
+        license_type:
+          type: string
+          example: "Subscription"
+        purchase_date:
+          type: string
+          format: date
+          example: "2023-01-15"
+        subscription_id:
+          type: string
+          nullable: true
+          description: >
+            Optional subscription reference. May be **null** for licenses with no subscription ID
+            (e.g. perpetual licenses, freeware).
+          example: "MSO365-00123"
+        renewal_date:
+          type: string
+          format: date
+          description: >
+            Automatically computed by the server as **expiry_date** minus 90 days — the date the
+            '**For Renewal**' status window begins. It is not independently editable and is not
+            part of any request body.
+          example: "2024-10-17"
+        expiry_date:
+          type: string
+          format: date
+          example: "2025-01-15"
+        cost:
+          type: number
+          format: decimal
+          nullable: true
+          example: 12500.00
+        previous_cost:
+          type: number
+          format: decimal
+          nullable: true
+          example: 11000.00
+        software_status:
+          type: string
+          enum: [Active, For Renewal, Expired, Discontinued]
+          description: >
+            **Active**, '**For Renewal**', and '**Expired**' are date-derived from **expiry_date** —
+            computed on create/update and refreshed daily by a scheduled database event.
+            '**Discontinued**' is set only by explicit client request.
+          example: "Active"
+        remarks:
+          type: string
+          nullable: true
+          example: "Enterprise license"
+        assigned_date:
+          type: string
+          format: date
+          nullable: true
+          example: "2023-02-01"
+        assigned_user_id:
+          type: integer
+          nullable: true
+          example: 3
+        assigned_user_name:
+          type: string
+          nullable: true
+          example: "Juan Dela Cruz"
+        assigned_user_emp_id:
+          type: integer
+          nullable: true
+          example: 10042
+
+    SoftwareCreateBody:
+      type: object
+      required:
+        - softwareName
+        - vendor
+        - licenseType
+        - purchaseDate
+        - expiryDate
+      properties:
+        softwareName:
+          type: string
+          example: "Microsoft Office 365"
+        vendor:
+          type: string
+          example: "Microsoft"
+        licenseType:
+          type: string
+          example: "Subscription"
+        purchaseDate:
+          type: string
+          format: date
+          example: "2024-01-15"
+        subscriptionId:
+          type: string
+          nullable: true
+          description: >
+            Optional. Send **null** or omit entirely for licenses with no subscription reference
+            (e.g. perpetual licenses, freeware).
+          example: "MSO365-00123"
+        expiryDate:
+          type: string
+          format: date
+          description: >
+            Used to automatically derive **renewal_date** (set to 90 days before this date) and,
+            unless **softwareStatus** is manually set to '**Discontinued**', to compute
+            **software_status** (Active, For Renewal, or Expired).
+          example: "2028-01-15"
+        cost:
+          type: number
+          format: decimal
+          minimum: 0
+          nullable: true
+          example: 12500.00
+        previousCost:
+          type: number
+          format: decimal
+          minimum: 0
+          nullable: true
+          example: 11000.00
+        softwareStatus:
+          type: string
+          nullable: true
+          enum: [Discontinued]
+          description: >
+            Optional. The only value that may be set manually is '**Discontinued**'. Do not send
+            Active, For Renewal, or Expired — those are always computed automatically from
+            **expiryDate** and will be rejected if sent explicitly. Omit this field entirely to
+            let the status be computed automatically.
+          example: "Discontinued"
+        remarks:
+          type: string
+          nullable: true
+          example: "Enterprise license"
+        euEmpId:
+          type: integer
+          nullable: true
+          description: >
+            Employee ID of the end user to assign. Send **null** to unassign.
+            Omit entirely to preserve the existing assignment (PUT only).
+            Returns 400 if the end user has a Resigned status.
+            If this already matches an existing end user, euName, euDivision, euDepartment,
+            euLocation, euEmail, and euContactNo below are silently ignored even if included.
+          example: 10042
+        assignedDate:
+          type: string
+          format: date
+          description: Required when **euEmpId** is provided and not null.
+          example: "2024-01-20"
+        euName:
+          type: string
+          description: Required when creating a new end user via **euEmpId**.
+          example: "Maria Santos"
+        euDivision:
+          type: string
+          description: Required when creating a new end user via **euEmpId**.
+          example: "Finance"
+        euDepartment:
+          description: >
+            Department of the end user. Accepts an integer **department_id**,
+            a numeric string (e.g. **"3"**), or a case-insensitive department
+            name string (e.g. **"Accounting"**). Required when creating a new
+            end user via **euEmpId**.
+          oneOf:
+            - type: integer
+            - type: string
+          example: "Accounting"
+        euLocation:
+          type: string
+          enum: [B2, B1, GF, 2F, 3F, 4F, 5F, 6F, 7F, 8F, PO]
+          description: Required when creating a new end user via **euEmpId**.
+          example: "3F"
+        euEmail:
+          type: string
+          format: email
+          nullable: true
+          example: "m.santos@hospital.com"
+        euContactNo:
+          type: string
+          nullable: true
+          example: "09171234567"
+
+    SoftwareAssignBody:
+      type: object
+      required:
+        - euEmpId
+      description: >
+        If euEmpId already belongs to an existing end user, euName, euDivision, euDepartment,
+        euLocation, euEmail, and euContactNo are silently ignored even if included in the payload —
+        the existing end user's stored details are never modified as a side effect of an assignment.
+      properties:
+        euEmpId:
+          type: integer
+          nullable: true
+          description: >
+            Employee ID of the end user to assign. Send **null** to unassign.
+            Returns 400 if the end user has a Resigned status.
+            If this already matches an existing end user, all other end-user fields below
+            are silently ignored even if included.
+          example: 10042
+        assignedDate:
+          type: string
+          format: date
+          description: Required when **euEmpId** is provided and not null.
+          example: "2024-06-01"
+        euName:
+          type: string
+          description: Required when creating a new end user via **euEmpId**.
+          example: "Maria Santos"
+        euDivision:
+          type: string
+          description: Required when creating a new end user via **euEmpId**.
+          example: "Finance"
+        euDepartment:
+          description: >
+            Accepts an integer **department_id**, a numeric string (e.g.
+            **"3"**), or a case-insensitive department name (e.g.
+            **"Accounting"**). Required when creating a new end user.
+          oneOf:
+            - type: integer
+            - type: string
+          example: "Accounting"
+        euLocation:
+          type: string
+          enum: [B2, B1, GF, 2F, 3F, 4F, 5F, 6F, 7F, 8F, PO]
+          description: Required when creating a new end user via **euEmpId**.
+          example: "3F"
+        euEmail:
+          type: string
+          format: email
+          nullable: true
+          example: "m.santos@hospital.com"
+        euContactNo:
+          type: string
+          nullable: true
+          example: "09171234567"
+
+    MessageResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "Operation successful"
+
+  responses:
+    Unauthorized:
+      description: "Unauthorized — No token provided or the token is invalid/expired."
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/MessageResponse"
+          examples:
+            noToken:
+              summary: No token provided
+              value:
+                message: "Unauthorized Access: No Token Provided"
+            invalidToken:
+              summary: Token is invalid or expired
+              value:
+                message: "Unauthorized Access: Invalid Token"
+    Forbidden:
+      description: "Forbidden — Authenticated but the user lacks the required permission."
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/MessageResponse"
+          example:
+            message: "Forbidden: Insufficient permissions"
+    InternalServerError:
+      description: "Internal Server Error — An unexpected server-side error occurred."
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/MessageResponse"
+          example:
+            message: "Something went wrong"

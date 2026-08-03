@@ -1,0 +1,647 @@
+paths:
+  /ups:
+    get:
+      summary: Retrieve all UPS units
+      description: >
+        Returns a list of all UPS records in the system. The assigned_to,
+        department_name, and asset_location fields are derived at read time
+        through a computer → end_user → department join chain and will be null
+        if the UPS is not assigned to any computer.
+
+
+        Required permission: Authenticated user (bearer token). No specific permission number required for read access.
+      tags:
+        - UPS
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: List of UPS units retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Ups"
+              examples:
+                success:
+                  summary: Assigned and unassigned UPS units
+                  value:
+                    - ups_id: 1
+                      computer_assigned_to: 5
+                      assigned_to: "DESKTOP-FINANCE01"
+                      department_name: "Finance"
+                      asset_location: "4F"
+                      asset_tag: "UPS-0001"
+                      serial_no: "SN-UPS-001"
+                      brand: "APC"
+                      vendor: "DataServ"
+                      model: "Back-UPS BX1000G"
+                      capacity_va: 1000
+                      battery_replace_date: "2025-06-01"
+                      asset_status: "Active"
+                      asset_condition: "New"
+                      received_date: "2022-01-10"
+                      warranty_expiry: "2025-01-10"
+                      date_deployed: "2022-01-15"
+                      cost: 7500.00
+                      remarks: null
+                    - ups_id: 2
+                      computer_assigned_to: null
+                      assigned_to: null
+                      department_name: null
+                      asset_location: null
+                      asset_tag: "UPS-0002"
+                      serial_no: "SN-UPS-002"
+                      brand: "APC"
+                      vendor: "DataServ"
+                      model: "Back-UPS BX650"
+                      capacity_va: 650
+                      battery_replace_date: null
+                      asset_status: "Spare"
+                      asset_condition: "New"
+                      received_date: "2023-09-01"
+                      warranty_expiry: "2026-09-01"
+                      date_deployed: null
+                      cost: 4500.00
+                      remarks: null
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+    post:
+      summary: Add a new UPS unit
+      description: >
+        Creates a new UPS record.
+
+
+        **Required Permission: 12 (Add Asset - UPS)** — Accessible by: '**IT Manager**', '**IT Supervisor**', and '**IT Helpdesk**'
+
+
+        **Required fields:** serialNo, brand, vendor, model, capacityVa,
+        assetStatus, receivedDate.
+
+
+        **Note:** warrantyExpiry is optional and defaults to null if omitted.
+
+
+        **ENUMs:**
+
+        - assetStatus: **Active, Repair, Spare, Defective**
+
+        - assetCondition: **New, Used** — defaults to **New** if omitted
+
+
+        **Notes:** capacityVa must be a positive integer between **1 and
+        65535** (SMALLINT UNSIGNED). computerAssignedTo must reference a valid
+        **computer_id** if provided. UPS records have no assetLocation field —
+        location is derived at read time from the assigned computer's end user.
+      tags:
+        - UPS
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpsBody"
+            examples:
+              minimalSpare:
+                summary: Required fields only — unassigned spare
+                value:
+                  serialNo: "SN-UPS-010"
+                  brand: "APC"
+                  vendor: "DataServ"
+                  model: "Back-UPS BX650"
+                  capacityVa: 650
+                  assetStatus: "Spare"
+                  receivedDate: "2024-04-01"
+                  warrantyExpiry: "2027-04-01"
+              fullAssigned:
+                summary: All fields — assigned to a computer
+                value:
+                  computerAssignedTo: 12
+                  assetTag: "UPS-0010"
+                  serialNo: "SN-UPS-010"
+                  brand: "APC"
+                  vendor: "DataServ"
+                  model: "Back-UPS BX1000G"
+                  capacityVa: 1000
+                  batteryReplaceDate: "2026-04-01"
+                  assetStatus: "Active"
+                  assetCondition: "New"
+                  receivedDate: "2024-04-01"
+                  warrantyExpiry: "2027-04-01"
+                  dateDeployed: "2024-04-05"
+                  cost: 7500.00
+                  remarks: "Assigned to server room workstation"
+              usedRepair:
+                summary: Used unit sent for repair
+                value:
+                  serialNo: "SN-UPS-099"
+                  brand: "Eaton"
+                  vendor: "Meralco Industrial"
+                  model: "5PX 1500"
+                  capacityVa: 1500
+                  assetStatus: "Repair"
+                  assetCondition: "Used"
+                  receivedDate: "2019-03-01"
+                  warrantyExpiry: "2022-03-01"
+                  remarks: "Battery bloated. Sent to Eaton service center."
+              highCapacity:
+                summary: High-capacity server UPS
+                value:
+                  assetTag: "UPS-SVR-001"
+                  serialNo: "SN-UPS-SVR-001"
+                  brand: "APC"
+                  vendor: "APC Philippines"
+                  model: "Smart-UPS 3000"
+                  capacityVa: 3000
+                  assetStatus: "Active"
+                  assetCondition: "New"
+                  receivedDate: "2024-01-01"
+                  warrantyExpiry: "2027-01-01"
+                  cost: 45000.00
+      responses:
+        "201":
+          description: UPS added successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              examples:
+                success:
+                  summary: Created
+                  value:
+                    message: "UPS added successfully"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              examples:
+                missingFields:
+                  summary: Missing required fields
+                  value:
+                    message: "Missing required fields"
+                invalidStatus:
+                  summary: Invalid asset status
+                  value:
+                    message: "Invalid asset status value"
+                invalidCondition:
+                  summary: Invalid asset condition
+                  value:
+                    message: "Invalid asset condition value"
+                invalidCapacity:
+                  summary: capacityVa is not a positive integer or exceeds 65535
+                  value:
+                    message: "Invalid capacity VA value"
+                invalidComputerAssigned:
+                  summary: computerAssignedTo is not a positive integer
+                  value:
+                    message: "Invalid computer assigned to value"
+                invalidCost:
+                  summary: cost is negative or not a number
+                  value:
+                    message: "Invalid cost value"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  "/ups/:id":
+    get:
+      summary: Retrieve a UPS unit by ID
+      description: >
+        Returns a single UPS record by its ID, including the joined computer
+        name, department name, and asset location where available.
+
+
+        Required permission: Authenticated user (bearer token). No specific permission number required for read access.
+      tags:
+        - UPS
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The UPS ID
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "200":
+          description: UPS unit retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Ups"
+              examples:
+                assigned:
+                  summary: UPS assigned to a computer
+                  value:
+                    ups_id: 1
+                    computer_assigned_to: 5
+                    assigned_to: "DESKTOP-FINANCE01"
+                    department_name: "Finance"
+                    asset_location: "4F"
+                    asset_tag: "UPS-0001"
+                    serial_no: "SN-UPS-001"
+                    brand: "APC"
+                    vendor: "DataServ"
+                    model: "Back-UPS BX1000G"
+                    capacity_va: 1000
+                    battery_replace_date: "2025-06-01"
+                    asset_status: "Active"
+                    asset_condition: "New"
+                    received_date: "2022-01-10"
+                    warranty_expiry: "2025-01-10"
+                    date_deployed: "2022-01-15"
+                    cost: 7500.00
+                    remarks: null
+                unassigned:
+                  summary: Unassigned spare UPS — joined fields null
+                  value:
+                    ups_id: 2
+                    computer_assigned_to: null
+                    assigned_to: null
+                    department_name: null
+                    asset_location: null
+                    asset_tag: "UPS-0002"
+                    serial_no: "SN-UPS-002"
+                    brand: "APC"
+                    vendor: "DataServ"
+                    model: "Back-UPS BX650"
+                    capacity_va: 650
+                    battery_replace_date: null
+                    asset_status: "Spare"
+                    asset_condition: "New"
+                    received_date: "2023-09-01"
+                    warranty_expiry: "2026-09-01"
+                    date_deployed: null
+                    cost: 4500.00
+                    remarks: null
+        "400":
+          description: Missing or invalid UPS ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              examples:
+                missingId:
+                  summary: Missing ID
+                  value:
+                    message: "Missing UPS ID"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          description: Not Found — UPS not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              examples:
+                notFound:
+                  summary: Not found
+                  value:
+                    message: "UPS not found"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+    put:
+      summary: Update a UPS unit
+      description: >
+        Fully updates an existing UPS record. All required fields must be
+        supplied; omitted optional fields are set to null.
+
+
+        **Required Permission: 27 (Edit Asset - UPS)** — Accessible by: '**IT Manager**' and '**IT Supervisor**'
+
+
+        **Required fields:** serialNo, brand, vendor, model, capacityVa,
+        assetStatus, receivedDate.
+
+
+        **Note:** warrantyExpiry is optional and defaults to null if omitted.
+
+
+        **ENUMs:**
+
+        - assetStatus: **Active, Repair, Spare, Defective**
+
+        - assetCondition: **New, Used** — defaults to **New** if omitted
+
+
+        **Note:** To unassign a UPS from a computer, send computerAssignedTo as
+        **null**.
+      tags:
+        - UPS
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The UPS ID
+          schema:
+            type: integer
+            minimum: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpsBody"
+            examples:
+              updateBattery:
+                summary: Update after battery replacement
+                value:
+                  serialNo: "SN-UPS-001"
+                  brand: "APC"
+                  vendor: "DataServ"
+                  model: "Back-UPS BX1000G"
+                  capacityVa: 1000
+                  batteryReplaceDate: "2026-06-01"
+                  assetStatus: "Active"
+                  assetCondition: "Used"
+                  receivedDate: "2022-01-10"
+                  warrantyExpiry: "2025-01-10"
+              unassign:
+                summary: Unassign from computer and mark as Spare
+                value:
+                  computerAssignedTo: null
+                  serialNo: "SN-UPS-001"
+                  brand: "APC"
+                  vendor: "DataServ"
+                  model: "Back-UPS BX1000G"
+                  capacityVa: 1000
+                  assetStatus: "Spare"
+                  assetCondition: "Used"
+                  receivedDate: "2022-01-10"
+                  warrantyExpiry: "2025-01-10"
+              reassign:
+                summary: Reassign to a different computer
+                value:
+                  computerAssignedTo: 20
+                  serialNo: "SN-UPS-001"
+                  brand: "APC"
+                  vendor: "DataServ"
+                  model: "Back-UPS BX1000G"
+                  capacityVa: 1000
+                  assetStatus: "Active"
+                  assetCondition: "Used"
+                  receivedDate: "2022-01-10"
+                  warrantyExpiry: "2025-01-10"
+      responses:
+        "200":
+          description: UPS updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              examples:
+                success:
+                  summary: Updated
+                  value:
+                    message: "UPS updated successfully"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              examples:
+                missingId:
+                  summary: Missing UPS ID
+                  value:
+                    message: "Missing UPS ID"
+                missingFields:
+                  summary: Missing required fields
+                  value:
+                    message: "Missing required fields"
+                invalidStatus:
+                  summary: Invalid asset status
+                  value:
+                    message: "Invalid asset status value"
+                invalidCondition:
+                  summary: Invalid asset condition
+                  value:
+                    message: "Invalid asset condition value"
+                invalidCapacity:
+                  summary: capacityVa out of range or not an integer
+                  value:
+                    message: "Invalid capacity VA value"
+                invalidComputerAssigned:
+                  summary: computerAssignedTo is not a positive integer
+                  value:
+                    message: "Invalid computer assigned to value"
+                invalidCost:
+                  summary: cost is negative or not a number
+                  value:
+                    message: "Invalid cost value"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          description: Not Found — UPS not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              examples:
+                notFound:
+                  summary: Not found
+                  value:
+                    message: "UPS not found"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+components:
+  schemas:
+    Ups:
+      type: object
+      description: >
+        Full UPS record as returned from the database. assigned_to,
+        department_name, and asset_location are derived through a computer →
+        end_user → department join and will be null if the UPS is unassigned.
+      properties:
+        ups_id:
+          type: integer
+          example: 1
+        computer_assigned_to:
+          type: integer
+          nullable: true
+          description: Foreign key to computer.computer_id. Null if unassigned.
+          example: 5
+        assigned_to:
+          type: string
+          nullable: true
+          description: Computer name resolved from the computer table join.
+          example: "DESKTOP-FINANCE01"
+        department_name:
+          type: string
+          nullable: true
+          description: Department name resolved through computer → end_user → department join.
+          example: "Finance"
+        asset_location:
+          type: string
+          nullable: true
+          enum: [B2, B1, GF, 2F, 3F, 4F, 5F, 6F, 7F, 8F, PO]
+          description: Location resolved from the assigned end user's eu_location.
+          example: "4F"
+        asset_tag:
+          type: string
+          nullable: true
+          example: "UPS-0001"
+        serial_no:
+          type: string
+          example: "SN-UPS-001"
+        brand:
+          type: string
+          example: "APC"
+        vendor:
+          type: string
+          example: "DataServ"
+        model:
+          type: string
+          example: "Back-UPS BX1000G"
+        capacity_va:
+          type: integer
+          minimum: 1
+          maximum: 65535
+          description: UPS capacity in Volt-Amperes.
+          example: 1000
+        battery_replace_date:
+          type: string
+          format: date
+          nullable: true
+          example: "2025-06-01"
+        asset_status:
+          type: string
+          enum: [Active, Repair, Spare, Defective]
+          example: "Active"
+        asset_condition:
+          type: string
+          enum: [New, Used]
+          example: "New"
+        received_date:
+          type: string
+          format: date
+          example: "2022-01-10"
+        warranty_expiry:
+          type: string
+          format: date
+          nullable: true
+          example: "2025-01-10"
+        date_deployed:
+          type: string
+          format: date
+          nullable: true
+          example: "2022-01-15"
+        cost:
+          type: number
+          format: decimal
+          nullable: true
+          minimum: 0
+          example: 7500.00
+        remarks:
+          type: string
+          nullable: true
+          example: null
+
+    UpsBody:
+      type: object
+      required:
+        - serialNo
+        - brand
+        - vendor
+        - model
+        - capacityVa
+        - assetStatus
+        - receivedDate
+      properties:
+        computerAssignedTo:
+          type: integer
+          nullable: true
+          minimum: 1
+          description: Foreign key referencing computer.computer_id. Send null to unassign.
+          example: 5
+        assetTag:
+          type: string
+          nullable: true
+          example: "UPS-0001"
+        serialNo:
+          type: string
+          example: "SN-UPS-001"
+        brand:
+          type: string
+          example: "APC"
+        vendor:
+          type: string
+          example: "DataServ"
+        model:
+          type: string
+          example: "Back-UPS BX1000G"
+        capacityVa:
+          type: integer
+          minimum: 1
+          maximum: 65535
+          description: UPS capacity in Volt-Amperes. Must be a positive integer between 1 and 65535.
+          example: 1000
+        batteryReplaceDate:
+          type: string
+          format: date
+          nullable: true
+          example: "2025-06-01"
+        assetStatus:
+          type: string
+          enum: [Active, Repair, Spare, Defective]
+          example: "Active"
+        assetCondition:
+          type: string
+          enum: [New, Used]
+          description: Defaults to New if omitted.
+          example: "New"
+        receivedDate:
+          type: string
+          format: date
+          example: "2022-01-10"
+        warrantyExpiry:
+          type: string
+          format: date
+          nullable: true
+          description: Optional. Defaults to null if omitted.
+          example: "2025-01-10"
+        dateDeployed:
+          type: string
+          format: date
+          nullable: true
+          example: "2022-01-15"
+        cost:
+          type: number
+          format: decimal
+          nullable: true
+          minimum: 0
+          example: 7500.00
+        remarks:
+          type: string
+          nullable: true
+          example: null
+
+    MessageResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "Operation successful"

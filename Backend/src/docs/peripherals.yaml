@@ -1,0 +1,259 @@
+paths:
+  /peripheral:
+    get:
+      summary: Get all peripherals
+      description: >
+        Returns a list of all peripheral types in the system, ordered alphabetically
+        by peripheral name. Peripherals are the accessory types that can be linked
+        to computers (e.g., Mouse, Keyboard, Monitor).
+
+
+        Required permission: Authenticated user (bearer token). No specific permission number required for read access.
+      tags:
+        - Peripherals
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: List of peripherals retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Peripheral"
+              example:
+                - peripheral_id: 2
+                  peripheral_name: "Keyboard"
+                - peripheral_id: 1
+                  peripheral_name: "Mouse"
+                - peripheral_id: 3
+                  peripheral_name: "Monitor"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              examples:
+                noToken:
+                  value:
+                    message: "Unauthorized Access: No Token Provided"
+                invalidToken:
+                  value:
+                    message: "Unauthorized Access: Invalid Token"
+        "403":
+          description: Forbidden - User does not have permission 15 (Manage End User)
+          content:
+            application/json:
+              example:
+                message: "Forbidden: Insufficient permissions"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              example:
+                message: "Something went wrong"
+
+    post:
+      summary: Add a new peripheral type
+      description: >
+        Creates a new peripheral type. The peripheral name must be unique
+        across all existing peripherals (exact match, case-insensitive conflict
+        check at the application level; the DB enforces a UNIQUE constraint).
+
+
+        **Required Permission: 16 (Add New Peripheral)** — Accessible by: '**IT Manager**' and '**IT Supervisor**'
+
+
+        Required fields (NOT NULL): peripheralName
+      tags:
+        - Peripherals
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PeripheralInput"
+            examples:
+              validPeripheral:
+                summary: Valid new peripheral
+                value:
+                  peripheralName: "Headset"
+              missingName:
+                summary: Missing peripheralName - triggers 400
+                value: {}
+              emptyName:
+                summary: Empty string - triggers 400
+                value:
+                  peripheralName: ""
+              duplicateName:
+                summary: Peripheral name already exists - triggers 409
+                value:
+                  peripheralName: "Mouse"
+      responses:
+        "201":
+          description: Peripheral added successfully
+          content:
+            application/json:
+              example:
+                message: "Peripheral added successfully"
+        "400":
+          description: Missing or invalid peripheralName
+          content:
+            application/json:
+              example:
+                message: "Missing or invalid peripheralName"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              examples:
+                noToken:
+                  value:
+                    message: "Unauthorized Access: No Token Provided"
+                invalidToken:
+                  value:
+                    message: "Unauthorized Access: Invalid Token"
+        "403":
+          description: Forbidden - User does not have permission 15 (Manage End User)
+          content:
+            application/json:
+              example:
+                message: "Forbidden: Insufficient permissions"
+        "409":
+          description: Conflict - Peripheral name already exists
+          content:
+            application/json:
+              example:
+                message: "A peripheral with this name already exists"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              example:
+                message: "Something went wrong"
+
+  "/peripheral/:id":
+    put:
+      summary: Update a peripheral's name
+      description: >
+        Updates the name of an existing peripheral. If the new name matches the
+        current name (case-insensitive), the uniqueness check is skipped.
+        Otherwise, the new name must not conflict with any other existing peripheral.
+
+
+        **Required Permission: 32 (Edit Peripheral Details)** — Accessible by: '**IT Manager**' and '**IT Supervisor**'
+
+
+        Required fields (NOT NULL): peripheralName
+      tags:
+        - Peripherals
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+          description: The peripheral_id of the peripheral to update
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PeripheralInput"
+            examples:
+              validUpdate:
+                summary: Rename to a new unique name
+                value:
+                  peripheralName: "Webcam"
+              sameNameUpdate:
+                summary: Updating with the same name (no conflict check triggered)
+                value:
+                  peripheralName: "Mouse"
+              conflictingName:
+                summary: Name already taken by another peripheral - triggers 409
+                value:
+                  peripheralName: "Keyboard"
+              notFoundPeripheral:
+                summary: Peripheral ID does not exist - triggers 404
+                value:
+                  peripheralName: "Headset"
+              missingName:
+                summary: Missing peripheralName - triggers 400
+                value: {}
+      responses:
+        "200":
+          description: Peripheral updated successfully
+          content:
+            application/json:
+              example:
+                message: "Peripheral updated successfully"
+        "400":
+          description: Missing or invalid input
+          content:
+            application/json:
+              examples:
+                missingId:
+                  summary: Path ID is 0 or non-numeric
+                  value:
+                    message: "Missing peripheral ID"
+                missingName:
+                  value:
+                    message: "Missing or invalid peripheralName"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              examples:
+                noToken:
+                  value:
+                    message: "Unauthorized Access: No Token Provided"
+                invalidToken:
+                  value:
+                    message: "Unauthorized Access: Invalid Token"
+        "403":
+          description: Forbidden - User does not have permission 15 (Manage End User)
+          content:
+            application/json:
+              example:
+                message: "Forbidden: Insufficient permissions"
+        "404":
+          description: Not Found — Peripheral not found
+          content:
+            application/json:
+              example:
+                message: "Peripheral not found"
+        "409":
+          description: Conflict - Peripheral name already exists
+          content:
+            application/json:
+              example:
+                message: "A peripheral with this name already exists"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              example:
+                message: "Something went wrong"
+
+components:
+  schemas:
+    PeripheralInput:
+      type: object
+      required:
+        - peripheralName
+      properties:
+        peripheralName:
+          type: string
+          description: Name of the peripheral type. Must be unique. REQUIRED.
+
+    Peripheral:
+      type: object
+      properties:
+        peripheral_id:
+          type: integer
+        peripheral_name:
+          type: string

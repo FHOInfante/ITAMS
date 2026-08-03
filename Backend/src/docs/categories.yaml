@@ -1,0 +1,453 @@
+paths:
+  /category:
+    get:
+      summary: Get category options
+      description: >
+        Returns category entries ordered alphabetically by category_group,
+        then by category_value. Every row includes **category_group** so the
+        frontend can identify which field each value belongs to regardless of
+        whether a filter is applied.
+
+
+        Both active and inactive entries are always returned so the frontend
+        can distinguish available vs. disabled options.
+
+
+        When the **asset** query parameter is provided, only entries belonging
+        to the category groups of that IT asset type are returned.
+
+
+        When the **asset** query parameter is omitted, all category entries
+        across every registered group are returned.
+
+
+        Required permission: Authenticated user (bearer token). No specific
+        permission number required for read access.
+      tags:
+        - Categories
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: asset
+          required: false
+          schema:
+            type: string
+            enum:
+              - computer
+              - printer
+              - network_device
+              - ups
+              - software
+          description: >
+            The IT asset type to filter category options by. **OPTIONAL.**
+            When omitted, all category rows are returned.
+
+
+            **Allowed values and their resulting category_group fields**:
+
+            - *computer* — computer.brand, computer.model, computer.device_type, computer.operating_system, computer.ram_size, computer.storage_type, computer.storage_capacity
+
+            - *printer* — printer.brand, printer.printer_type
+
+            - *network_device* — network_device.brand, network_device.device_type
+
+            - *ups* — ups.brand
+
+            - *software* — software.license_type
+      responses:
+        "200":
+          description: Category options retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CategoryOptionFlat"
+              examples:
+                allCategories:
+                  summary: No asset param provided - all rows returned
+                  value:
+                    - category_id: 1
+                      category_group: "computer.brand"
+                      category_value: "Dell"
+                      is_active: true
+                    - category_id: 2
+                      category_group: "computer.brand"
+                      category_value: "HP"
+                      is_active: true
+                    - category_id: 9
+                      category_group: "printer.brand"
+                      category_value: "Canon"
+                      is_active: true
+                    - category_id: 15
+                      category_group: "software.license_type"
+                      category_value: "Perpetual"
+                      is_active: true
+                computerAsset:
+                  summary: asset=computer - only computer group rows returned
+                  value:
+                    - category_id: 1
+                      category_group: "computer.brand"
+                      category_value: "Dell"
+                      is_active: true
+                    - category_id: 2
+                      category_group: "computer.brand"
+                      category_value: "HP"
+                      is_active: false
+                    - category_id: 5
+                      category_group: "computer.device_type"
+                      category_value: "Desktop"
+                      is_active: true
+                    - category_id: 6
+                      category_group: "computer.device_type"
+                      category_value: "Laptop"
+                      is_active: true
+                upsAsset:
+                  summary: asset=ups - only ups group rows returned
+                  value:
+                    - category_id: 20
+                      category_group: "ups.brand"
+                      category_value: "APC"
+                      is_active: true
+                    - category_id: 21
+                      category_group: "ups.brand"
+                      category_value: "Eaton"
+                      is_active: true
+                emptyAsset:
+                  summary: Valid asset with no entries seeded yet
+                  value: []
+                emptyDatabase:
+                  summary: No asset param, no entries in DB yet
+                  value: []
+        "400":
+          description: asset query parameter was provided but is invalid
+          content:
+            application/json:
+              examples:
+                invalidAsset:
+                  summary: asset value is not one of the five allowed values
+                  value:
+                    message: "Invalid asset. Allowed values: computer, printer, network_device, ups, software"
+                malformedAsset:
+                  summary: asset value is an empty string
+                  value:
+                    message: "Missing or invalid asset query parameter"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              examples:
+                noToken:
+                  value:
+                    message: "Unauthorized Access: No Token Provided"
+                invalidToken:
+                  value:
+                    message: "Unauthorized Access: Invalid Token"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              example:
+                message: "Something went wrong"
+    post:
+      summary: Add a new category option
+      description: >
+        Creates a new entry in the category table under a specified **category_group**.
+        Both categoryGroup and categoryValue are **REQUIRED NOT NULL** fields.
+
+
+        The categoryGroup must be a valid group belonging to any registered asset
+        in the format **table_name.column_name**. The categoryValue must be unique
+        within its group, enforced via both exact match and **case-insensitive**
+        comparison. New entries are always created with **is_active = true**.
+
+
+        **Required permission: 18 (Add New Dropdown Option)** — Accessible by: '**IT Manager**' and '**IT Supervisor**'
+
+
+        **Valid categoryGroup values:**
+
+        - *computer* — computer.brand, computer.model, computer.device_type, computer.operating_system, computer.ram_size, computer.storage_type, computer.storage_capacity
+
+        - *printer* — printer.brand, printer.printer_type
+
+        - *network_device* — network_device.brand, network_device.device_type
+
+        - *ups* — ups.brand
+
+        - *software* — software.license_type
+      tags:
+        - Categories
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CategoryInput"
+            examples:
+              validComputerEntry:
+                summary: Valid new computer brand entry
+                value:
+                  categoryGroup: "computer.brand"
+                  categoryValue: "Acer"
+              validPrinterEntry:
+                summary: Valid entry for a printer group
+                value:
+                  categoryGroup: "printer.printer_type"
+                  categoryValue: "Laser"
+              validSoftwareEntry:
+                summary: Valid entry for a software group
+                value:
+                  categoryGroup: "software.license_type"
+                  categoryValue: "Perpetual"
+              missingGroup:
+                summary: Missing categoryGroup - triggers 400
+                value:
+                  categoryValue: "HP"
+              missingValue:
+                summary: Missing categoryValue - triggers 400
+                value:
+                  categoryGroup: "computer.brand"
+              emptyGroup:
+                summary: Empty string categoryGroup - triggers 400
+                value:
+                  categoryGroup: ""
+                  categoryValue: "HP"
+              invalidGroup:
+                summary: Unregistered category group - triggers 400
+                value:
+                  categoryGroup: "computer.remarks"
+                  categoryValue: "Some Value"
+              exactDuplicate:
+                summary: Exact duplicate value for this group - triggers 409
+                value:
+                  categoryGroup: "computer.brand"
+                  categoryValue: "HP"
+              caseInsensitiveDuplicate:
+                summary: Case-insensitive duplicate (hp vs HP) - triggers 409
+                value:
+                  categoryGroup: "computer.brand"
+                  categoryValue: "hp"
+      responses:
+        "201":
+          description: Category option added successfully
+          content:
+            application/json:
+              example:
+                message: "Category option added successfully"
+        "400":
+          description: Missing or invalid input
+          content:
+            application/json:
+              examples:
+                missingGroup:
+                  value:
+                    message: "Missing or invalid categoryGroup"
+                missingValue:
+                  value:
+                    message: "Missing or invalid categoryValue"
+                invalidGroup:
+                  value:
+                    message: "Invalid category group"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              examples:
+                noToken:
+                  value:
+                    message: "Unauthorized Access: No Token Provided"
+                invalidToken:
+                  value:
+                    message: "Unauthorized Access: Invalid Token"
+        "403":
+          description: Forbidden - User does not have permission 14 (File Maintenance)
+          content:
+            application/json:
+              example:
+                message: "Forbidden: Insufficient permissions"
+        "409":
+          description: Conflict - Value already exists in this group
+          content:
+            application/json:
+              examples:
+                exactMatch:
+                  value:
+                    message: "This value already exists for the given category group"
+                caseInsensitiveMatch:
+                  value:
+                    message: "A similar value already exists (case-insensitive match)"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              example:
+                message: "Something went wrong"
+
+  "/category/:id":
+    patch:
+      summary: Update is_active status of a category entry
+      description: >
+        Toggles the **is_active** status of an existing category entry by its ID.
+        This is a soft enable/disable mechanism — it does not delete records.
+        Setting is_active to **false** should cause the frontend to hide the option
+        from new dropdowns while preserving existing data integrity.
+
+
+        If the new status is identical to the current status, the update is skipped
+        and a 200 response is still returned (no-op guard).
+
+
+        **Required permission: 34 (Edit Dropdown Option Status)** — Accessible by: '**IT Manager**' and '**IT Supervisor**'
+
+
+        **Required field (NOT NULL):** isActive (boolean)
+      tags:
+        - Categories
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+          description: The category_id of the entry to update. **REQUIRED.**
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CategoryStatusInput"
+            examples:
+              deactivate:
+                summary: Disable an active category option
+                value:
+                  isActive: false
+              activate:
+                summary: Re-enable a previously disabled option
+                value:
+                  isActive: true
+              noOp:
+                summary: Setting the same status (no DB write, 200 returned)
+                value:
+                  isActive: true
+              invalidType:
+                summary: Non-boolean value - triggers 400
+                value:
+                  isActive: "true"
+              missingField:
+                summary: Missing isActive - triggers 400
+                value: {}
+              notFound:
+                summary: Non-existent category_id - triggers 404
+                value:
+                  isActive: false
+      responses:
+        "200":
+          description: Category status updated or already at the desired value
+          content:
+            application/json:
+              examples:
+                updated:
+                  value:
+                    message: "Category status updated successfully"
+                unchanged:
+                  value:
+                    message: "Category status unchanged"
+        "400":
+          description: Missing or invalid input
+          content:
+            application/json:
+              examples:
+                missingId:
+                  summary: Path ID is 0 or non-numeric
+                  value:
+                    message: "Missing category ID"
+                invalidIsActive:
+                  value:
+                    message: "Missing or invalid isActive (must be boolean)"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              examples:
+                noToken:
+                  value:
+                    message: "Unauthorized Access: No Token Provided"
+                invalidToken:
+                  value:
+                    message: "Unauthorized Access: Invalid Token"
+        "403":
+          description: Forbidden - User does not have permission 14 (File Maintenance)
+          content:
+            application/json:
+              example:
+                message: "Forbidden: Insufficient permissions"
+        "404":
+          description: Not Found — Category entry not found
+          content:
+            application/json:
+              example:
+                message: "Category not found"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              example:
+                message: "Something went wrong"
+
+components:
+  schemas:
+    CategoryOptionFlat:
+      type: object
+      properties:
+        category_id:
+          type: integer
+          description: Primary key of the category entry
+        category_group:
+          type: string
+          description: >
+            The group this entry belongs to in table_name.column_name format.
+            Use this field on the frontend to map each row to the correct
+            form dropdown.
+        category_value:
+          type: string
+          description: The dropdown option value (e.g., HP, Dell, Laser)
+        is_active:
+          type: boolean
+          description: >
+            Whether this option is currently available for selection.
+            **false** means the option is disabled and should be hidden from
+            new form dropdowns.
+
+    CategoryInput:
+      type: object
+      required:
+        - categoryGroup
+        - categoryValue
+      properties:
+        categoryGroup:
+          type: string
+          description: >
+            The target category group in **table_name.column_name** format.
+            **REQUIRED.** Must belong to a registered asset in the backend registry.
+        categoryValue:
+          type: string
+          description: >
+            The new dropdown option to register under the given group.
+            **REQUIRED.** Must be unique within the group (case-insensitive).
+
+    CategoryStatusInput:
+      type: object
+      required:
+        - isActive
+      properties:
+        isActive:
+          type: boolean
+          description: >
+            New active status for the category entry. **REQUIRED.** Must be a
+            strict boolean (true or false). String values are rejected.

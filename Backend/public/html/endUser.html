@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>End Users</title>
+  <link rel="stylesheet" href="../css/sidebar.css">
+  <link rel="stylesheet" href="../css/shared.css">
+  <link rel="stylesheet" href="../css/endUser.css">
+  <script>
+    if (!localStorage.getItem("token")) { window.location.href = "../index.html"; }
+    const __origFetch = window.fetch;
+    window.fetch = function(u, o) {
+      return __origFetch.call(this, u, o).then(function(r) {
+        if (r.status === 401) { localStorage.clear(); window.location.href = "../index.html"; }
+        return r;
+      });
+    };
+  </script>
+</head>
+<body>
+
+  <div id="sidebar-container"></div>
+
+  <div class="page">
+    <div class="page-heading">
+      <h1 class="page-title">End Users</h1>
+      <button class="btn-primary" id="btnAddUser">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M5 12h14"/><path d="M12 5v14"/>
+        </svg>
+        Add End User
+      </button>
+    </div>
+
+    <!-- Filters -->
+    <div class="filters-bar">
+      <div class="search-box">
+        <i data-lucide="search"></i>
+        <input type="text" id="filterSearch" placeholder="Name, Employee ID, or email" />
+      </div>
+      <div class="filter-group">
+        <label>Division</label>
+        <select id="filterDivision">
+          <option value="">All Divisions</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Department</label>
+        <select id="filterDepartment">
+          <option value="">All Departments</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Location</label>
+        <select id="filterLocation">
+          <option value="">All Locations</option>
+          <option value="B1">B1</option>
+          <option value="B2">B2</option>
+          <option value="B3">B3</option>
+          <option value="B4">B4</option>
+          <option value="B5">B5</option>
+          <option value="B6">B6</option>
+          <option value="B7">B7</option>
+          <option value="GF">GF</option>
+          <option value="2F">2F</option>
+          <option value="3F">3F</option>
+          <option value="4F">4F</option>
+          <option value="5F">5F</option>
+          <option value="6F">6F</option>
+          <option value="7F">7F</option>
+          <option value="PO">PO</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Status</label>
+        <select id="filterStatus">
+          <option value="">All</option>
+          <option value="active">Active</option>
+          <option value="resigned">Resigned</option>
+        </select>
+      </div>
+      <div class="filter-actions">
+        <button class="btn-secondary btn-icon-only" id="btnClearFilters" title="Clear filters">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Table -->
+    <div class="table-wrapper">
+      <div class="table-header">
+        <h2>User List</h2>
+        <span class="log-count" id="userCount">— users</span>
+      </div>
+
+      <table class="end-user-table">
+        <thead>
+          <tr>
+            <th>Employee ID</th>
+            <th>Name</th>
+            <th>Division</th>
+            <th>Department</th>
+            <th>Floor</th>
+            <th>Computers</th>
+            <th>Software</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="userTableBody">
+          <tr class="state-row">
+            <td colspan="9">
+              <div class="spinner"></div>
+              Loading end users…
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="pagination" id="paginationBar">
+      <span id="paginationInfo"></span>
+      <div class="pagination-btns" id="paginationBtns"></div>
+    </div>
+  </div>
+
+  <!-- ── Detail Modal ─────────────────────────────────────────────────── -->
+  <div id="detailModal" class="modal hidden">
+    <div class="modal-content modal-lg">
+      <div class="modal-header">
+        <div>
+          <h2 id="detailModalTitle">User Profile</h2>
+          <p id="detailModalMeta"></p>
+        </div>
+        <button class="modal-close-btn" id="btnCloseDetail">×</button>
+      </div>
+      <div class="modal-body" id="detailModalBody">
+        <p class="modal-loading">Loading…</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Add Modal ────────────────────────────────────────────────────── -->
+  <div id="addModal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div>
+          <h2>Add End User</h2>
+          <p>Fill in all required fields to create a new end user.</p>
+        </div>
+        <button class="modal-close-btn" id="btnCloseAdd">×</button>
+      </div>
+      <div class="modal-body">
+        <form id="addUserForm" autocomplete="off">
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Full Name <span class="required">*</span></label>
+              <input type="text" id="addName" placeholder="e.g. Juan Dela Cruz" />
+              <span class="field-error" id="addNameError">Full name is required.</span>
+            </div>
+            <div class="form-group">
+              <label>Employee ID <span class="required">*</span></label>
+              <input type="number" id="addEmpId" placeholder="e.g. 10001"
+                maxlength="5" step="1" oninput="if(this.value.length > 5) this.value = this.value.slice(0, 5);">
+              <span class="field-error" id="addEmpIdError">Employee ID must be exactly 5 digits.</span>
+            </div>
+            <div class="form-group">
+              <label>Division <span class="required">*</span></label>
+              <input type="text" id="addDivision" placeholder="e.g. Information Technology" />
+              <span class="field-error" id="addDivisionError">Division is required.</span>
+            </div>
+            <div class="form-group">
+              <label>Department <span class="required">*</span></label>
+              <select id="addDepartment">
+                <option value="">Select department</option>
+              </select>
+              <span class="field-error" id="addDepartmentError">Please select a department.</span>
+            </div>
+            <div class="form-group">
+              <label>Email</label>
+              <input type="email" id="addEmail" placeholder="e.g. juan@hospital.com" />
+              <span class="field-error" id="addEmailError">Enter a valid email address.</span>
+            </div>
+            <div class="form-group">
+              <label>Contact No.</label>
+              <input type="text" id="addContact" placeholder="e.g. 09171234567"
+                maxlength="11" inputmode="numeric" oninput="if(this.value.length > 11) this.value = this.value.slice(0, 11);"/>
+              <span class="field-error" id="addContactError">Contact No. must be up to 11 digits only.</span>
+            </div>
+            <div class="form-group">
+              <label>Location <span class="required">*</span></label>
+              <select id="addLocation">
+                <option value="" disabled hidden>Select floor</option>
+                <option value="B1">B1</option>
+                <option value="B2">B2</option>
+                <option value="B3">B3</option>
+                <option value="B4">B4</option>
+                <option value="B5">B5</option>
+                <option value="B6">B6</option>
+                <option value="B7">B7</option>
+                <option value="GF">GF</option>
+                <option value="2F">2F</option>
+                <option value="3F">3F</option>
+                <option value="4F">4F</option>
+                <option value="5F">5F</option>
+                <option value="6F">6F</option>
+                <option value="7F">7F</option>
+                <option value="PO">PO</option>
+              </select>
+              <span class="field-error" id="addLocationError">Please select a location.</span>
+            </div>
+          </div>
+          <div id="addFormError" class="form-error hidden"></div>
+          <div class="form-actions">
+            <button type="button" class="btn-secondary" id="btnCancelAdd">Cancel</button>
+            <button type="submit" class="btn-primary" id="btnSubmitAdd">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/>
+                <path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/>
+                <path d="M7 3v4a1 1 0 0 0 1 1h7"/>
+              </svg>
+              Create User</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Edit Modal ───────────────────────────────────────────────────── -->
+  <div id="editModal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div>
+          <h2>Edit End User</h2>
+          <p id="editModalMeta"></p>
+        </div>
+        <button class="modal-close-btn" id="btnCloseEdit">×</button>
+      </div>
+      <div class="modal-body">
+        <form id="editUserForm" autocomplete="off">
+          <input type="hidden" id="editUserId" />
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Full Name <span class="required">*</span></label>
+              <input type="text" id="editName" />
+              <span class="field-error" id="editNameError">Full name is required.</span>
+            </div>
+            <div class="form-group">
+              <label>Employee ID <span class="required">*</span></label>
+              <input type="number" id="editEmpId" maxlength="5" step="1" oninput="if(this.value.length > 5) this.value = this.value.slice(0, 5);"/>
+              <span class="field-error" id="editEmpIdError">Employee ID must be exactly 5 digits.</span>
+            </div>
+            <div class="form-group">
+              <label>Division <span class="required">*</span></label>
+              <input type="text" id="editDivision" />
+              <span class="field-error" id="editDivisionError">Division is required.</span>
+            </div>
+            <div class="form-group">
+              <label>Department <span class="required">*</span></label>
+              <select id="editDepartment">
+                <option value="">Select department</option>
+              </select>
+              <span class="field-error" id="editDepartmentError">Please select a department.</span>
+            </div>
+            <div class="form-group">
+              <label>Email</label>
+              <input type="email" id="editEmail" />
+              <span class="field-error" id="editEmailError">Enter a valid email address.</span>
+            </div>
+            <div class="form-group">
+              <label>Contact No.</label>
+              <input type="text" id="editContact" maxlength="11" inputmode="numeric" 
+              oninput="if(this.value.length > 11) this.value = this.value.slice(0, 11);"/>
+              <span class="field-error" id="editContactError">Contact No. must be up to 11 digits only.</span>
+            </div>
+            <div class="form-group">
+              <label>Location <span class="required">*</span></label>
+              <select id="editLocation">
+                <option value="" disabled hidden>Select floor</option>
+                <option value="B1">B1</option>
+                <option value="B2">B2</option>
+                <option value="B3">B3</option>
+                <option value="B4">B4</option>
+                <option value="B5">B5</option>
+                <option value="B6">B6</option>
+                <option value="B7">B7</option>
+                <option value="GF">GF</option>
+                <option value="2F">2F</option>
+                <option value="3F">3F</option>
+                <option value="4F">4F</option>
+                <option value="5F">5F</option>
+                <option value="6F">6F</option>
+                <option value="7F">7F</option>
+                <option value="PO">PO</option>
+              </select>
+              <span class="field-error" id="editLocationError">Please select a location.</span>
+            </div>
+            <div class="form-group">
+              <label>Employment Status</label>
+              <div id="editStatusDisplay" class="status-display-field"></div>
+            </div>
+          </div>
+          <div id="editFormError" class="form-error hidden"></div>
+          <div class="form-actions">
+            <button type="button" class="btn-secondary" id="btnCancelEdit">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" 
+                stroke-linejoin="round" data-lucide="x" aria-hidden="true" class="lucide lucide-x">
+                <path d="M18 6 6 18"></path>
+                <path d="m6 6 12 12"></path></svg>Cancel</button>
+            <button type="submit" class="btn-primary" id="btnSubmitEdit">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" 
+                stroke-linejoin="round" data-lucide="save" aria-hidden="true" class="lucide lucide-save">
+                <path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"></path>
+                <path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"></path>
+                <path d="M7 3v4a1 1 0 0 0 1 1h7"></path></svg>Save Changes</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+    <!-- ── Status Change Confirm Modal ──────────────────────────────────── -->
+    <div id="statusModal" class="modal hidden">
+    <div class="modal-content modal-sm">
+        <div class="modal-header">
+        <div>
+            <h2 id="statusModalTitle">Update Employment Status</h2>
+            <p id="statusModalSubtitle">This will update the user's employment status immediately.</p>
+        </div>
+        <button class="modal-close-btn" id="btnCloseStatus">×</button>
+        </div>
+        <div class="modal-body">
+        <div class="status-modal-warning" id="statusModalWarning">
+            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+            <p id="statusModalMsg">Are you sure?</p>
+        </div>
+        <div class="form-actions">
+            <button type="button" class="btn-secondary" id="btnCancelStatus">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
+            </svg>
+            Cancel
+            </button>
+            <button type="button" class="btn-status-confirm" id="btnConfirmStatus">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"/>
+            </svg>
+            Confirm
+            </button>
+        </div>
+        </div>
+    </div>
+    </div>
+
+  <!-- ── Alert Modal ────────────────────────────────────────────────────── -->
+  <div id="alertModal" class="modal hidden">
+    <div class="modal-content alert-modal-content">
+      <div class="modal-body alert-modal-body">
+        <p id="alertModalMessage" class="alert-modal-message"></p>
+        <button id="alertModalOk" class="btn-primary alert-modal-btn">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="../script/sidebar.js" defer></script>
+  <script src="../script/endUser.js" defer></script>
+</body>
+</html>

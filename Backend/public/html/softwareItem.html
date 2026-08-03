@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Software Detail</title>
+
+    <link rel="stylesheet" href="../css/sidebar.css">
+    <link rel="stylesheet" href="../css/assetsItemSharedStyle.css">
+    <link rel="stylesheet" href="../css/softwareItem.css">
+
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="icon" type="image/png" href="/assets/itd-logo-tab.png">
+</head>
+<body class="view-mode">
+
+    <!-- Sidebar gets injected here -->
+    <div id="sidebar-container"></div>
+
+    <main class="main-content">
+
+        <!-- ── Page Header ──────────────────────────────────────── -->
+        <div class="page-header">
+            <div>
+                <div class="breadcrumb">
+                    <a href="software.html">IT Assets</a>
+                    <span class="breadcrumb-sep">></span>
+                    <a href="software.html">Software</a>
+                    <span class="breadcrumb-sep">></span>
+                    <span id="breadcrumbName">Loading…</span>
+                </div>
+                <h1 class="page-title" id="pageTitle">Software Detail</h1>
+            </div>
+            <div class="header-actions">
+                <span class="status-badge" id="statusBadge">—</span>
+
+                <!-- View mode actions -->
+                <div class="view-only" id="viewActions">
+                    <button class="btn-secondary" onclick="enterEditMode()">
+                        <i data-lucide="pencil"></i> Edit
+                    </button>
+                </div>
+
+                <!-- Edit mode actions -->
+                <div class="edit-only" id="editActions">
+                    <button class="btn-secondary" onclick="cancelEdit()">
+                        <i data-lucide="x"></i> Cancel
+                    </button>
+                    <button class="btn-primary" style="margin-left: 8px;" onclick="saveChanges()">
+                        <i data-lucide="save"></i> Save Changes
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Edit Mode Banner ──────────────────────────────────── -->
+        <div id="editModeBar">
+            <p><strong>Editing mode active.</strong> Make your changes below and click Save Changes when done.</p>
+        </div>
+
+        <!-- ── Main Page Content (populated by JS) ──────────────── -->
+        <div id="pageContent">
+            <div class="state-wrapper">
+                <i data-lucide="loader-circle"></i>
+                <p>Loading software details…</p>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- ── Toast Notification ─────────────────────────────────── -->
+    <div id="toast"></div>
+
+    <script src="../script/softwareItem.js"></script>
+    <script src="../script/sidebar.js" defer></script>
+
+</body>
+</html>

@@ -1,0 +1,16 @@
+HOW TO RUN IT ASSET MANAGEMENT SYSTEM:
+
+1. Run XAMPP as administrator (Ensure that no other user has XAMPP open)
+
+2. Start 'Apache' and 'MySQL'
+
+3. Open CMD
+
+4. Run ``` cd "C:\IT Asset Management\Backend" ```
+
+5. Run ``` npm run start ```
+
+NOTES:
+- ITAMS Website is accessible on '10.50.2.54:5000'
+- Apache use '8080' port instead of the default '80'
+- Go to 'localhost:8080' to access PHPMyAdmin to directly access the db.

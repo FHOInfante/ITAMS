@@ -1,0 +1,373 @@
+paths:
+  /auth/register:
+    post:
+      tags:
+        - Auth
+      summary: Register a new system user account
+      description: >
+        Creates a new system user account with the given employee ID, name, role, login username, and optional email.
+        Permissions are automatically assigned based on the role specified.
+        Both the empID and the username must be unique. The username uniqueness check is
+        case-insensitive (e.g. "JDelaCruz" and "jdelacruz" are treated as the same username).
+        A fresh DB permission check is performed on every request.
+
+
+        If no password is provided, the system assigns the default password **"Tmcsl@12345"**
+        and sets is_password_default to TRUE.
+
+
+        **Required Permission: 21 (Manage Account)** — Accessible by: '**IT Manager**'' and '**IT Supervisor**'
+
+
+        Required Fields: **name**, **empID**, **role**, **username**. Optional Fields: **email**, **password**.
+
+
+        Valid role values: "IT Manager", "IT Supervisor", "System Specialist", "IT Helpdesk", "Viewer".
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+            examples:
+              validWithPassword:
+                summary: "Valid — All fields provided including custom password"
+                value:
+                  name: "Juan Dela Cruz"
+                  email: "juan@example.com"
+                  empID: 10001
+                  role: "IT Helpdesk"
+                  username: "jdelacruz"
+                  password: "SecurePass@2025"
+              validDefaultPassword:
+                summary: "Valid — No password provided, system default will be used"
+                value:
+                  name: "Maria Santos"
+                  email: "maria@example.com"
+                  empID: 10002
+                  role: "IT Supervisor"
+                  username: "msantos"
+              validNoEmail:
+                summary: "Valid — Email is optional and omitted"
+                value:
+                  name: "Pedro Reyes"
+                  empID: 10003
+                  role: "Viewer"
+                  username: "preyes"
+                  password: "CustomPass@99"
+              missingName:
+                summary: "Error — name is required"
+                value:
+                  empID: 10004
+                  role: "IT Helpdesk"
+                  username: "agomez"
+              missingEmpID:
+                summary: "Error — empID is required"
+                value:
+                  name: "Ana Cruz"
+                  role: "System Specialist"
+                  username: "acruz"
+              missingRole:
+                summary: "Error — role is required"
+                value:
+                  name: "Luis Gomez"
+                  empID: 10005
+                  username: "lgomez"
+              missingUsername:
+                summary: "Error — username is required"
+                value:
+                  name: "Carlo Tan"
+                  empID: 10007
+                  role: "IT Helpdesk"
+              invalidRole:
+                summary: "Error — role value is not a valid option"
+                value:
+                  name: "Rosa Lim"
+                  empID: 10006
+                  role: "Technician"
+                  username: "rlim"
+              duplicateEmpID:
+                summary: "Error — empID already exists"
+                value:
+                  name: "Different Person"
+                  empID: 10001
+                  role: "IT Helpdesk"
+                  username: "differentperson"
+              duplicateUsername:
+                summary: "Error — username already exists (case-insensitive)"
+                value:
+                  name: "Another Person"
+                  empID: 10008
+                  role: "IT Helpdesk"
+                  username: "JDelaCruz"
+      responses:
+        "201":
+          description: User account created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              example:
+                message: "Successfully created an account"
+        "400":
+          description: >
+            Bad Request — Missing a required field, invalid role value,
+            the empID is already registered, or the username is already taken.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              examples:
+                missingFields:
+                  summary: "Missing one or more required fields"
+                  value:
+                    message: "Missing required fields"
+                invalidRole:
+                  summary: "role is not a valid value"
+                  value:
+                    message: "Invalid role value. Must be one of: IT Manager, IT Supervisor, System Specialist, IT Helpdesk, Viewer"
+                duplicateEmpID:
+                  summary: "empID already registered"
+                  value:
+                    message: "User with that employee ID already exists"
+                duplicateUsername:
+                  summary: "username already taken (case-insensitive match)"
+                  value:
+                    message: "Username is already taken"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /auth/login:
+    post:
+      tags:
+        - Auth
+      summary: Login and obtain a JWT token
+      description: >
+        Authenticates a system user with their login username and password.
+        Username lookup is case-insensitive (e.g. "JDelaCruz" and "jdelacruz" resolve
+        to the same account). Returns a signed JWT token containing the user ID, role,
+        and current permission IDs.
+
+
+        The returned JWT must be passed as a Bearer token in the Authorization header for
+        all protected routes. Changes to permissions after login are NOT reflected in the
+        token until a new token is issued, except on routes that perform a fresh DB check.
+
+
+        Accounts with user_status "Inactive" are rejected regardless of password correctness.
+
+
+        Required Fields: **username**, **password**.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+            examples:
+              validLogin:
+                summary: "Valid — correct username and password"
+                value:
+                  username: "jdelacruz"
+                  password: "Tmcsl@12345"
+              validLoginDifferentCase:
+                summary: "Valid — username casing does not need to match exactly"
+                value:
+                  username: "JDelaCruz"
+                  password: "Tmcsl@12345"
+              missingPassword:
+                summary: "Error — password is required"
+                value:
+                  username: "jdelacruz"
+              missingUsername:
+                summary: "Error — username is required"
+                value:
+                  password: "Tmcsl@12345"
+              wrongPassword:
+                summary: "Error — username exists but password is incorrect"
+                value:
+                  username: "jdelacruz"
+                  password: "WrongPassword"
+              unknownUsername:
+                summary: "Error — username does not exist"
+                value:
+                  username: "nonexistentuser"
+                  password: "Tmcsl@12345"
+              inactiveAccount:
+                summary: "Error — account is Inactive"
+                value:
+                  username: "msantos"
+                  password: "Tmcsl@12345"
+      responses:
+        "200":
+          description: Login successful. Returns a signed JWT token and user details.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResponse"
+              example:
+                JWT: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                name: "Juan Dela Cruz"
+                role: "IT Helpdesk"
+                permissions: [1, 11]
+                is_password_default: true
+        "400":
+          description: Bad Request — Missing one or more required fields (username or password).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              example:
+                message: "Missing required fields"
+        "401":
+          description: >
+            Unauthorized — username does not exist, password does not match,
+            or the account status is "Inactive".
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              examples:
+                invalidCredentials:
+                  summary: "username not found or password mismatch"
+                  value:
+                    message: "Invalid credentials"
+                deactivated:
+                  summary: "Account status is Inactive"
+                  value:
+                    message: "Account is deactivated"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+components:
+  schemas:
+    MessageResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "Operation successful"
+
+    RegisterRequest:
+      type: object
+      required:
+        - name
+        - empID
+        - role
+        - username
+      properties:
+        name:
+          type: string
+          description: "Required. Full name of the user."
+          example: "Juan Dela Cruz"
+        email:
+          type: string
+          format: email
+          nullable: true
+          description: "Optional. Email address. Must be unique if provided."
+          example: "juan@example.com"
+        empID:
+          type: integer
+          description: "Required. Unique employee ID for the user record. No longer used to log in."
+          example: 10001
+        role:
+          type: string
+          description: "Required. Determines the default permission set applied to the account."
+          enum:
+            - IT Manager
+            - IT Supervisor
+            - System Specialist
+            - IT Helpdesk
+            - Viewer
+          example: "IT Helpdesk"
+        username:
+          type: string
+          description: >
+            Required. Unique login username for the account, used to authenticate at /auth/login
+            instead of empID. Uniqueness is checked case-insensitively.
+          example: "jdelacruz"
+        password:
+          type: string
+          description: 'Optional. If omitted, defaults to "Tmcsl@12345" and is_password_default is set TRUE.'
+          example: "SecurePass@2025"
+
+    LoginRequest:
+      type: object
+      required:
+        - username
+        - password
+      properties:
+        username:
+          type: string
+          description: "Required. Login username used as the account identifier. Case-insensitive."
+          example: "jdelacruz"
+        password:
+          type: string
+          description: "Required. The account password. Case-sensitive."
+          example: "Tmcsl@12345"
+
+    LoginResponse:
+      type: object
+      properties:
+        JWT:
+          type: string
+          description: >
+            Signed JWT token. Pass as "Bearer <token>" in the Authorization header for all protected routes.
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        name:
+          type: string
+          description: Full name of the authenticated user.
+          example: "Juan Dela Cruz"
+        role:
+          type: string
+          description: Role of the authenticated user.
+          example: "IT Helpdesk"
+        permissions:
+          type: array
+          items:
+            type: integer
+          description: "Array of permission IDs granted to the user at the time of login."
+          example: [1, 11]
+        is_password_default:
+          type: boolean
+          description: "TRUE if the user has not yet changed their password from the system default."
+          example: true
+
+  responses:
+    Unauthorized:
+      description: "Unauthorized — No token provided or the token is invalid/expired."
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/MessageResponse"
+          examples:
+            noToken:
+              summary: No token provided
+              value:
+                message: "Unauthorized Access: No Token Provided"
+            invalidToken:
+              summary: Token is invalid or expired
+              value:
+                message: "Unauthorized Access: Invalid Token"
+    Forbidden:
+      description: "Forbidden — Authenticated but the user lacks the required permission."
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/MessageResponse"
+          example:
+            message: "Forbidden: Insufficient permissions"
+    InternalError:
+      description: "Internal Server Error — An unexpected server-side error occurred."
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/MessageResponse"
+          example:
+            message: "Something went wrong"

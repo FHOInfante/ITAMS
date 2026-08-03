@@ -1,0 +1,875 @@
+paths:
+  /end-user:
+    get:
+      summary: Get all end users
+      description: >
+        Returns a list of all end users in the system. Each record includes the end user's
+        profile information, their resolved department name, and nested arrays of all
+        computers and software currently assigned to them.
+
+
+        Required permission: Authenticated user (bearer token). No specific permission number required for read access.
+      tags:
+        - End Users
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: List of end users retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/EndUserDetail"
+              example:
+                - eu_id: 1
+                  eu_name: "Juan Dela Cruz"
+                  eu_emp_id: 10001
+                  eu_division: "Information Technology"
+                  eu_department: 13
+                  department_name: "IT Department"
+                  eu_location: "3F"
+                  eu_email: "juan.delacruz@hospital.com"
+                  eu_contact_no: "09171234567"
+                  eu_status: "Active"
+                  assignedComputers:
+                    - computer_id: 5
+                      computer_name: "PC-IT-001"
+                  assignedSoftware:
+                    - software_id: 2
+                      software_name: "Microsoft 365"
+                - eu_id: 2
+                  eu_name: "Maria Santos"
+                  eu_emp_id: 10002
+                  eu_division: "Billing"
+                  eu_department: 6
+                  department_name: "Billing Department"
+                  eu_location: "2F"
+                  eu_email: null
+                  eu_contact_no: null
+                  eu_status: "Resigned"
+                  assignedComputers: []
+                  assignedSoftware: []
+        "401":
+          description: "Unauthorized — No token provided or the token is invalid/expired."
+          content:
+            application/json:
+              examples:
+                noToken:
+                  summary: No token provided
+                  value:
+                    message: "Unauthorized Access: No Token Provided"
+                invalidToken:
+                  summary: Token is invalid or expired
+                  value:
+                    message: "Unauthorized Access: Invalid Token"
+        "403":
+          description: "Forbidden — Authenticated but the user lacks Permission 1 (View Asset)."
+          content:
+            application/json:
+              example:
+                message: "Forbidden: Insufficient permissions"
+        "500":
+          description: "Internal Server Error — An unexpected server-side error occurred."
+          content:
+            application/json:
+              example:
+                message: "Something went wrong"
+
+    post:
+      summary: Add a new end user
+      description: >
+        Creates a new end user record in the system. The eu_status always defaults
+        to Active on creation and cannot be set through this endpoint.
+
+
+        **Required Permission: 20 (Add New End Users)** — Accessible by: '**IT Manager**' and '**IT Supervisor**'
+
+
+        **Required fields (NOT NULL):** euName, euEmpId, euDivision, euDepartment, euLocation.
+
+
+        **euEmpId** must be a unique positive integer. Returns 409 if it is already taken.
+
+
+        **euDepartment** accepts any of the following formats. The lookup fails with 404 if the
+        referenced department does not exist:
+
+        - **Integer** — resolved directly as a department ID. Example: 13
+        - **Numeric string** — parsed and resolved as a department ID. Example: "13"
+        - **Name string** — resolved by a case-insensitive name match against the department table.
+          Example: "IT Department" or "it department"
+
+        **euLocation** must be one of the valid floor/area codes (case-sensitive ENUM):
+        **B2, B1, GF, 2F, 3F, 4F, 5F, 6F, 7F, 8F, PO**
+      tags:
+        - End Users
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EndUserInput"
+            examples:
+              fullPayloadWithIntDepartment:
+                summary: "All fields — department supplied as integer ID"
+                value:
+                  euName: "Juan Dela Cruz"
+                  euEmpId: 10001
+                  euDivision: "Information Technology"
+                  euDepartment: 13
+                  euLocation: "3F"
+                  euEmail: "juan.delacruz@hospital.com"
+                  euContactNo: "09171234567"
+              fullPayloadWithStringDepartmentName:
+                summary: "All fields — department supplied as name string (case-insensitive)"
+                value:
+                  euName: "Maria Santos"
+                  euEmpId: 10002
+                  euDivision: "Billing"
+                  euDepartment: "billing department"
+                  euLocation: "2F"
+                  euEmail: "maria.santos@hospital.com"
+                  euContactNo: "09181234567"
+              fullPayloadWithNumericStringDepartment:
+                summary: "All fields — department supplied as numeric string (treated as ID)"
+                value:
+                  euName: "Ana Reyes"
+                  euEmpId: 10003
+                  euDivision: "Emergency"
+                  euDepartment: "10"
+                  euLocation: "GF"
+                  euEmail: null
+                  euContactNo: null
+              minimalPayload:
+                summary: "Required fields only — no email, no contact"
+                value:
+                  euName: "Pedro Lim"
+                  euEmpId: 10004
+                  euDivision: "Finance"
+                  euDepartment: 6
+                  euLocation: "4F"
+              missingRequiredField:
+                summary: "Missing euLocation — triggers 400"
+                value:
+                  euName: "Pedro Reyes"
+                  euEmpId: 10005
+                  euDivision: "Emergency"
+                  euDepartment: 10
+              invalidEmpId:
+                summary: "Non-integer euEmpId — triggers 400"
+                value:
+                  euName: "Ana Lim"
+                  euEmpId: "ABC123"
+                  euDivision: "Laboratory"
+                  euDepartment: 11
+                  euLocation: "GF"
+              invalidLocation:
+                summary: "Invalid euLocation value — triggers 400"
+                value:
+                  euName: "Ben Cruz"
+                  euEmpId: 10006
+                  euDivision: "ICU"
+                  euDepartment: 16
+                  euLocation: "10F"
+              duplicateEmpId:
+                summary: "euEmpId already in use — triggers 409"
+                value:
+                  euName: "Carlo Ramos"
+                  euEmpId: 10001
+                  euDivision: "IT Department"
+                  euDepartment: 13
+                  euLocation: "3F"
+              departmentIdNotFound:
+                summary: "Department ID does not exist — triggers 404"
+                value:
+                  euName: "Donna Cruz"
+                  euEmpId: 10007
+                  euDivision: "Some Division"
+                  euDepartment: 9999
+                  euLocation: "4F"
+              departmentNameNotFound:
+                summary: "Department name does not match any record — triggers 404"
+                value:
+                  euName: "Eddie Santos"
+                  euEmpId: 10008
+                  euDivision: "Ghost Division"
+                  euDepartment: "Non-Existent Department"
+                  euLocation: "5F"
+      responses:
+        "201":
+          description: End user created successfully.
+          content:
+            application/json:
+              example:
+                message: "End user added successfully"
+        "400":
+          description: >
+            Bad Request — missing required fields, invalid euEmpId, invalid euDepartment value
+            (e.g. zero or negative integer, non-integer non-string type), or invalid euLocation.
+          content:
+            application/json:
+              examples:
+                missingFields:
+                  summary: One or more required fields are absent
+                  value:
+                    message: "Missing required fields"
+                invalidEmpId:
+                  summary: euEmpId is not a positive integer
+                  value:
+                    message: "Invalid euEmpId value"
+                invalidDepartmentValue:
+                  summary: euDepartment is an invalid type or value (e.g. 0, negative integer)
+                  value:
+                    message: "Invalid euDepartment value"
+                invalidLocation:
+                  summary: euLocation is not one of the allowed ENUM values
+                  value:
+                    message: "Invalid euLocation. Must be one of: B2, B1, GF, 2F, 3F, 4F, 5F, 6F, 7F, 8F, PO"
+        "401":
+          description: "Unauthorized — No token provided or the token is invalid/expired."
+          content:
+            application/json:
+              examples:
+                noToken:
+                  value:
+                    message: "Unauthorized Access: No Token Provided"
+                invalidToken:
+                  value:
+                    message: "Unauthorized Access: Invalid Token"
+        "403":
+          description: "Forbidden — Authenticated but the user lacks Permission 15 (Manage End User)."
+          content:
+            application/json:
+              example:
+                message: "Forbidden: Insufficient permissions"
+        "404":
+          description: >
+            Not Found — The referenced department does not exist.
+            Triggered when euDepartment is supplied as an integer ID, numeric string ID,
+            or a name string that does not match any department record.
+          content:
+            application/json:
+              example:
+                message: "Department not found"
+        "409":
+          description: "Conflict — An end user with the given employee ID already exists."
+          content:
+            application/json:
+              example:
+                message: "An end user with this employee ID already exists"
+        "500":
+          description: "Internal Server Error — An unexpected server-side error occurred."
+          content:
+            application/json:
+              example:
+                message: "Something went wrong"
+
+  "/end-user/:id":
+    get:
+      summary: Get a single end user by ID
+      description: >
+        Returns the full profile of a specific end user including their resolved department name,
+        and nested arrays of all computers and software currently assigned to them.
+
+
+        Required permission: Authenticated user (bearer token). No specific permission number required for read access.
+      tags:
+        - End Users
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+          description: "**[REQUIRED]** The eu_id of the end user to retrieve."
+          example: 1
+      responses:
+        "200":
+          description: End user found and returned.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EndUserDetail"
+              example:
+                eu_id: 1
+                eu_name: "Juan Dela Cruz"
+                eu_emp_id: 10001
+                eu_division: "Information Technology"
+                eu_department: 13
+                department_name: "IT Department"
+                eu_location: "3F"
+                eu_email: "juan.delacruz@hospital.com"
+                eu_contact_no: "09171234567"
+                eu_status: "Active"
+                assignedComputers:
+                  - computer_id: 5
+                    computer_name: "PC-IT-001"
+                assignedSoftware:
+                  - software_id: 2
+                    software_name: "Microsoft 365"
+        "400":
+          description: "Bad Request — id is missing or not a valid positive integer."
+          content:
+            application/json:
+              example:
+                message: "Missing end user ID"
+        "401":
+          description: "Unauthorized — No token provided or the token is invalid/expired."
+          content:
+            application/json:
+              examples:
+                noToken:
+                  value:
+                    message: "Unauthorized Access: No Token Provided"
+                invalidToken:
+                  value:
+                    message: "Unauthorized Access: Invalid Token"
+        "403":
+          description: "Forbidden — Authenticated but the user lacks Permission 1 (View Asset)."
+          content:
+            application/json:
+              example:
+                message: "Forbidden: Insufficient permissions"
+        "404":
+          description: "Not Found — No end user exists with the given ID."
+          content:
+            application/json:
+              example:
+                message: "End user not found"
+        "500":
+          description: "Internal Server Error — An unexpected server-side error occurred."
+          content:
+            application/json:
+              example:
+                message: "Something went wrong"
+
+    put:
+      summary: Update an end user record
+      description: >
+        Performs a full update on an existing end user record. All required fields must be provided.
+
+
+        **Required Permission: 36 (Edit End User Details)** — Accessible by: '**IT Manager**' and '**IT Supervisor**'
+
+
+        **Required fields (NOT NULL):** euName, euEmpId, euDivision, euDepartment, euLocation, euStatus.
+
+
+        **euEmpId** — if changed, the new value must not already be assigned to a different end user.
+        Returns 409 if it conflicts.
+
+
+        **euDepartment** accepts any of the following formats. The lookup fails with 404 if the
+        referenced department does not exist:
+
+        - **Integer** — resolved directly as a department ID. Example: 13
+        - **Numeric string** — parsed and resolved as a department ID. Example: "13"
+        - **Name string** — resolved by a case-insensitive name match against the department table.
+          Example: "IT Department" or "it department"
+
+        **euLocation** must be one of the valid floor/area codes (case-sensitive ENUM):
+        **B2, B1, GF, 2F, 3F, 4F, 5F, 6F, 7F, 8F, PO**
+
+
+        **euStatus** must be one of the valid status values (case-sensitive ENUM): **Active, Resigned**
+      tags:
+        - End Users
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+          description: "**[REQUIRED]** The eu_id of the end user to update."
+          example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EndUserInput"
+            examples:
+              fullUpdateIntDepartment:
+                summary: "Full update — department as integer ID, status Active"
+                value:
+                  euName: "Juan Dela Cruz"
+                  euEmpId: 10001
+                  euDivision: "Information Technology"
+                  euDepartment: 13
+                  euLocation: "4F"
+                  euEmail: "juan.updated@hospital.com"
+                  euContactNo: "09179999999"
+                  euStatus: "Active"
+              fullUpdateStringDepartmentName:
+                summary: "Full update — department as name string (case-insensitive)"
+                value:
+                  euName: "Juan Dela Cruz"
+                  euEmpId: 10001
+                  euDivision: "Information Technology"
+                  euDepartment: "IT Department"
+                  euLocation: "4F"
+                  euEmail: "juan.updated@hospital.com"
+                  euContactNo: "09179999999"
+                  euStatus: "Active"
+              fullUpdateNumericStringDepartment:
+                summary: "Full update — department as numeric string (treated as ID)"
+                value:
+                  euName: "Juan Dela Cruz"
+                  euEmpId: 10001
+                  euDivision: "Information Technology"
+                  euDepartment: "13"
+                  euLocation: "4F"
+                  euEmail: "juan.updated@hospital.com"
+                  euContactNo: "09179999999"
+                  euStatus: "Active"
+              minimalUpdate:
+                summary: "Required fields only"
+                value:
+                  euName: "Juan Dela Cruz"
+                  euEmpId: 10001
+                  euDivision: "Information Technology"
+                  euDepartment: 13
+                  euLocation: "3F"
+                  euStatus: "Active"
+              setStatusResigned:
+                summary: "Marking end user as Resigned"
+                value:
+                  euName: "Juan Dela Cruz"
+                  euEmpId: 10001
+                  euDivision: "Information Technology"
+                  euDepartment: 13
+                  euLocation: "3F"
+                  euStatus: "Resigned"
+              changeEmpId:
+                summary: "Changing employee ID to a new unique value"
+                value:
+                  euName: "Juan Dela Cruz"
+                  euEmpId: 20001
+                  euDivision: "Information Technology"
+                  euDepartment: 13
+                  euLocation: "3F"
+                  euStatus: "Active"
+              missingStatus:
+                summary: "Missing euStatus — triggers 400"
+                value:
+                  euName: "Juan Dela Cruz"
+                  euEmpId: 10001
+                  euDivision: "Information Technology"
+                  euDepartment: 13
+                  euLocation: "3F"
+              invalidStatus:
+                summary: "Invalid euStatus value — triggers 400"
+                value:
+                  euName: "Juan Dela Cruz"
+                  euEmpId: 10001
+                  euDivision: "Information Technology"
+                  euDepartment: 13
+                  euLocation: "3F"
+                  euStatus: "Terminated"
+              conflictingEmpId:
+                summary: "Changing to an already-used employee ID — triggers 409"
+                value:
+                  euName: "Juan Dela Cruz"
+                  euEmpId: 10002
+                  euDivision: "Information Technology"
+                  euDepartment: 13
+                  euLocation: "3F"
+                  euStatus: "Active"
+              departmentNameNotFound:
+                summary: "Department name does not match any record — triggers 404"
+                value:
+                  euName: "Juan Dela Cruz"
+                  euEmpId: 10001
+                  euDivision: "Information Technology"
+                  euDepartment: "Nonexistent Department"
+                  euLocation: "3F"
+                  euStatus: "Active"
+              departmentIdNotFound:
+                summary: "Department ID does not exist — triggers 404"
+                value:
+                  euName: "Juan Dela Cruz"
+                  euEmpId: 10001
+                  euDivision: "Information Technology"
+                  euDepartment: 9999
+                  euLocation: "3F"
+                  euStatus: "Active"
+              invalidLocationUpdate:
+                summary: "Invalid euLocation — triggers 400"
+                value:
+                  euName: "Juan Dela Cruz"
+                  euEmpId: 10001
+                  euDivision: "IT"
+                  euDepartment: 13
+                  euLocation: "ROOFTOP"
+                  euStatus: "Active"
+              endUserNotFound:
+                summary: "End user with given path ID does not exist — triggers 404"
+                value:
+                  euName: "Ghost User"
+                  euEmpId: 99999
+                  euDivision: "Unknown"
+                  euDepartment: 1
+                  euLocation: "GF"
+                  euStatus: "Active"
+      responses:
+        "200":
+          description: End user updated successfully.
+          content:
+            application/json:
+              example:
+                message: "End user updated successfully"
+        "400":
+          description: >
+            Bad Request — missing required fields, invalid euEmpId, invalid euDepartment value,
+            invalid euLocation, or invalid euStatus.
+          content:
+            application/json:
+              examples:
+                missingId:
+                  summary: Path ID is 0 or non-numeric
+                  value:
+                    message: "Missing end user ID"
+                missingFields:
+                  value:
+                    message: "Missing required fields"
+                invalidEmpId:
+                  value:
+                    message: "Invalid euEmpId value"
+                invalidDepartmentValue:
+                  summary: euDepartment is an invalid type or value (e.g. 0 or negative integer)
+                  value:
+                    message: "Invalid euDepartment value"
+                invalidLocation:
+                  value:
+                    message: "Invalid euLocation. Must be one of: B2, B1, GF, 2F, 3F, 4F, 5F, 6F, 7F, 8F, PO"
+                invalidStatus:
+                  value:
+                    message: "Invalid euStatus. Must be one of: Active, Resigned"
+        "401":
+          description: "Unauthorized — No token provided or the token is invalid/expired."
+          content:
+            application/json:
+              examples:
+                noToken:
+                  value:
+                    message: "Unauthorized Access: No Token Provided"
+                invalidToken:
+                  value:
+                    message: "Unauthorized Access: Invalid Token"
+        "403":
+          description: "Forbidden — Authenticated but the user lacks Permission 15 (Manage End User)."
+          content:
+            application/json:
+              example:
+                message: "Forbidden: Insufficient permissions"
+        "404":
+          description: >
+            Not Found — The end user path ID does not exist, or the referenced department
+            (by integer ID, numeric string ID, or name string) does not exist.
+          content:
+            application/json:
+              examples:
+                endUserNotFound:
+                  value:
+                    message: "End user not found"
+                departmentNotFound:
+                  value:
+                    message: "Department not found"
+        "409":
+          description: "Conflict — The new employee ID is already assigned to a different end user."
+          content:
+            application/json:
+              example:
+                message: "An end user with this employee ID already exists"
+        "500":
+          description: "Internal Server Error — An unexpected server-side error occurred."
+          content:
+            application/json:
+              example:
+                message: "Something went wrong"
+
+  "/end-user/:id/status":
+    patch:
+      summary: Update end user status
+      description: >
+        Updates the employment status of a specific end user record.
+
+
+        **Required Permission: 36 (Edit End User Details)** — Accessible by: '**IT Manager**' and '**IT Supervisor**'
+
+
+        **Valid Options (status): Active, Resigned**
+      tags:
+        - End Users
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+          description: "**[REQUIRED]** The eu_id of the end user to update."
+          example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateEndUserStatusRequest"
+            examples:
+              setActive:
+                summary: "Set end user status to Active"
+                value:
+                  status: "Active"
+              setResigned:
+                summary: "Set end user status to Resigned"
+                value:
+                  status: "Resigned"
+              missingStatus:
+                summary: "Missing status field — triggers 400"
+                value: {}
+              invalidStatus:
+                summary: "Invalid status value — triggers 400"
+                value:
+                  status: "Terminated"
+      responses:
+        "200":
+          description: End user status updated successfully.
+          content:
+            application/json:
+              example:
+                message: "End user status updated"
+        "400":
+          description: >
+            Bad Request — Missing required fields, or invalid status value.
+          content:
+            application/json:
+              examples:
+                missingFields:
+                  summary: Status field is absent
+                  value:
+                    message: "Missing required fields"
+                invalidStatus:
+                  summary: Status is not one of the allowed ENUM values
+                  value:
+                    message: "Invalid status value. Must be one of: Active, Resigned"
+        "401":
+          description: "Unauthorized — No token provided or the token is invalid/expired."
+          content:
+            application/json:
+              examples:
+                noToken:
+                  value:
+                    message: "Unauthorized Access: No Token Provided"
+                invalidToken:
+                  value:
+                    message: "Unauthorized Access: Invalid Token"
+        "403":
+          description: "Forbidden — Authenticated but the user lacks Permission 15 (Manage End User)."
+          content:
+            application/json:
+              example:
+                message: "Forbidden: Insufficient permissions"
+        "404":
+          description: "Not Found — No end user exists with the given ID."
+          content:
+            application/json:
+              example:
+                message: "End user not found"
+        "500":
+          description: "Internal Server Error — An unexpected server-side error occurred."
+          content:
+            application/json:
+              example:
+                message: "Something went wrong"
+
+components:
+  schemas:
+    EndUserInput:
+      type: object
+      required:
+        - euName
+        - euEmpId
+        - euDivision
+        - euDepartment
+        - euLocation
+      properties:
+        euName:
+          type: string
+          description: "**[REQUIRED]** Full name of the end user."
+          example: "Juan Dela Cruz"
+        euEmpId:
+          type: integer
+          description: >
+            **[REQUIRED]** Unique employee ID. Must be a positive integer.
+            Returns 409 if already taken by another end user.
+          example: 10001
+        euDivision:
+          type: string
+          description: "**[REQUIRED]** Division the end user belongs to."
+          example: "Information Technology"
+        euDepartment:
+          oneOf:
+            - type: integer
+              description: >
+                Department resolved by ID. Must be a positive integer matching an existing
+                department record. Returns 404 if the ID does not exist.
+              example: 13
+            - type: string
+              description: >
+                Department resolved by name (case-insensitive match) or numeric string ID.
+                A string containing only digits (e.g. "13") is parsed and treated as an ID lookup.
+                Any other string is matched against department_name using a case-insensitive comparison.
+                Returns 404 if no match is found.
+              example: "IT Department"
+          description: >
+            **[REQUIRED]** Reference to an existing department. Accepts three formats:
+
+            - **Integer** — direct ID lookup. Example: 13
+
+            - **Numeric string** — parsed as an ID. Example: "13"
+
+            - **Name string** — case-insensitive name match. Example: "it department" or "IT Department"
+
+            Returns 400 if the value is an invalid type (e.g. zero, negative integer, boolean).
+            Returns 404 if the referenced department does not exist.
+        euLocation:
+          type: string
+          description: >
+            **[REQUIRED]** Floor or area where the end user is located.
+            Must be exactly one of the allowed ENUM values (case-sensitive):
+            **B2, B1, GF, 2F, 3F, 4F, 5F, 6F, 7F, 8F, PO**
+          enum:
+            - B2
+            - B1
+            - GF
+            - 2F
+            - 3F
+            - 4F
+            - 5F
+            - 6F
+            - 7F
+            - 8F
+            - PO
+          example: "3F"
+        euEmail:
+          type: string
+          nullable: true
+          description: "Optional. Email address of the end user."
+          example: "juan.delacruz@hospital.com"
+        euContactNo:
+          type: string
+          nullable: true
+          description: "Optional. Contact number of the end user."
+          example: "09171234567"
+        euStatus:
+          type: string
+          description: >
+            **[REQUIRED for PUT]** Employment status of the end user.
+            Must be exactly one of the allowed ENUM values (case-sensitive): **Active, Resigned**.
+            This field is ignored on POST — new end users always default to Active.
+          enum:
+            - Active
+            - Resigned
+          example: "Active"
+
+    EndUserDetail:
+      type: object
+      description: Full end user record as returned by GET endpoints.
+      properties:
+        eu_id:
+          type: integer
+          example: 1
+        eu_name:
+          type: string
+          example: "Juan Dela Cruz"
+        eu_emp_id:
+          type: integer
+          example: 10001
+        eu_division:
+          type: string
+          example: "Information Technology"
+        eu_department:
+          type: integer
+          description: The resolved department_id stored on the record.
+          example: 13
+        department_name:
+          type: string
+          description: Human-readable department name resolved via JOIN.
+          example: "IT Department"
+        eu_location:
+          type: string
+          enum:
+            - B2
+            - B1
+            - GF
+            - 2F
+            - 3F
+            - 4F
+            - 5F
+            - 6F
+            - 7F
+            - 8F
+            - PO
+          example: "3F"
+        eu_email:
+          type: string
+          nullable: true
+          example: "juan.delacruz@hospital.com"
+        eu_contact_no:
+          type: string
+          nullable: true
+          example: "09171234567"
+        eu_status:
+          type: string
+          description: "Employment status of the end user. One of: **Active, Resigned**"
+          enum:
+            - Active
+            - Resigned
+          example: "Active"
+        assignedComputers:
+          type: array
+          description: All computers currently assigned to this end user.
+          items:
+            type: object
+            properties:
+              computer_id:
+                type: integer
+                example: 5
+              computer_name:
+                type: string
+                example: "PC-IT-001"
+        assignedSoftware:
+          type: array
+          description: All software currently assigned to this end user.
+          items:
+            type: object
+            properties:
+              software_id:
+                type: integer
+                example: 2
+              software_name:
+                type: string
+                example: "Microsoft 365"
+
+    UpdateEndUserStatusRequest:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          description: "**[REQUIRED]** The new employment status to assign. Must be one of: **Active, Resigned**"
+          enum:
+            - Active
+            - Resigned
+          example: "Active"

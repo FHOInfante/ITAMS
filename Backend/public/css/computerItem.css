@@ -1,0 +1,20 @@
+/* ============================================================
+   computerItem.css
+   Page-specific overrides for the Asset Detail / Edit page
+   (computerItem.html). Shared design system lives in
+   assetsItemSharedStyle.css — link that FIRST, this SECOND.
+   ============================================================ */
+
+/* Computer page uses the older single-column layout and hides
+   the shared sidebar-panel column (unused — this page relies
+   on the quick-info-bar pattern at the top instead). */
+.breadcrumb-sep {
+    font-size: 14px;
+}
+
+.detail-layout {
+    grid-template-columns: 1fr;
+    gap: 0;
+}
+
+.sidebar-panel { display: none; }

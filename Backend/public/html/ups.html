@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IT Assets - UPS</title>
+
+    <link rel="stylesheet" href="../css/assetsSharedStyle.css">
+    <link rel="stylesheet" href="../css/ups.css">
+    <link rel="stylesheet" href="../css/sidebar.css">
+
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="icon" type="image/png" href="/assets/itd-logo-tab.png">
+</head>
+<body>
+
+    <!-- Sidebar gets injected here -->
+    <div id="sidebar-container"></div>
+
+    <!-- Main Content -->
+    <main class="main-content">
+
+        <div class="page-header">
+            <h1 id="pageTitle">IT Assets > UPS</h1>
+            <button id="refreshFiltersBtn" class="refresh-btn" title="Clear all filters, sorting, and search">
+                <i data-lucide="refresh-cw"></i>
+                Refresh
+            </button>
+        </div>
+
+        <!-- Summary Cards -->
+        <div class="summary-grid">
+            <div class="card status-card" data-status="Active" title="Filter table by Active">
+                <h3>Active</h3>
+                <p id="activeCount">0</p>
+            </div>
+            <div class="card status-card" data-status="Spare" title="Filter table by Spare">
+                <h3>Spare</h3>
+                <p id="spareCount">0</p>
+            </div>
+            <div class="card status-card" data-status="Repair" title="Filter table by Under Repair">
+                <h3>Under Repair</h3>
+                <p id="repairCount">0</p>
+            </div>
+            <div class="card status-card" data-status="Defective" title="Filter table by Defective">
+                <h3>Defective</h3>
+                <p id="defectiveCount">0</p>
+            </div>
+        </div>
+
+        <!-- Toolbar -->
+        <div class="toolbar">
+            <div class="search-box">
+                <i data-lucide="search"></i>
+                <input
+                    type="text"
+                    id="searchInput"
+                    placeholder="Search asset tag, serial, name..."
+                >
+            </div>
+            <div class="toolbar-actions">
+                <div class="col-toggle-wrapper">
+                    <button id="colToggleBtn" class="col-toggle-btn">
+                        <i data-lucide="columns"></i>
+                        Columns
+                    </button>
+                    <div id="colTogglePanel" class="col-toggle-panel hidden">
+                        <div class="col-toggle-header">
+                            <span>Show / Hide Columns</span>
+                            <div class="col-toggle-actions">
+                                <button id="colSelectAll" class="col-link-btn">All</button>
+                                <span class="col-divider">·</span>
+                                <button id="colSelectNone" class="col-link-btn">None</button>
+                                <span class="col-divider">·</span>
+                                <button id="colReset" class="col-link-btn">Reset</button>
+                            </div>
+                        </div>
+                        <div class="col-toggle-body" id="colCheckboxList"></div>
+                    </div>
+                </div>
+                <div id="addAssetBtnContainer">
+                    <button id="addAssetBtn" class="primary">
+                        <i data-lucide="plus"></i>
+                        Add Asset
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Assets Table -->
+        <div class="table-wrapper">
+            <table id="assetTable">
+                <thead>
+                    <tr>
+                        <th data-col="asset_tag">Asset Tag</th>
+                        <th data-col="serial_no">Serial No.</th>
+                        <th data-col="brand">Brand</th>
+                        <th data-col="model">Model</th>
+                        <th data-col="capacity_va">Capacity (VA)</th>
+                        <th data-col="asset_status">Status</th>
+                        <th data-col="asset_condition">Condition</th>
+                        <th data-col="department_name">Department</th>
+                        <th data-col="asset_location">Location</th>
+                        <th data-col="computer_assigned_to">Assigned To</th>
+                        <th data-col="received_date">Received</th>
+                        <th data-col="warranty_expiry">Warranty Expiry</th>
+                        <th data-col="battery_replace_date">Battery Replaced</th>
+                        <th data-col="date_deployed">Date Deployed</th>
+                        <th data-col="vendor">Vendor</th>
+                        <th data-col="cost">Cost</th>
+                        <th data-col="remarks">Remarks</th>
+                        <th data-col="action">Action</th>
+                    </tr>
+                </thead>
+                <tbody id="assetTableBody"></tbody>
+            </table>
+        </div>
+
+
+        <!-- ============================================================ -->
+        <!-- ADD ASSET MODAL                                               -->
+        <!-- ============================================================ -->
+        <div id="assetModal" class="modal hidden">
+        <div class="modal-content">
+
+            <!-- Modal Header -->
+            <div class="modal-top">
+                <div class="modal-title-row">
+                    <h2>Add UPS Asset</h2>
+                    <button id="closeModal">Close</button>
+                </div>
+                <p class="modal-subtitle">Create a new UPS asset record.</p>
+            </div>
+
+            <!-- ── Stepper Tabs ───────────────────────────────────────── -->
+            <div class="stepper hidden" id="stepper">
+                <div class="step active" data-step="1">
+                    <span class="step-num">Step 1</span>
+                    <span class="step-label">Basic</span>
+                </div>
+                <div class="step inactive" data-step="2">
+                    <span class="step-num">Step 2</span>
+                    <span class="step-label">Procurement</span>
+                </div>
+                <div class="step inactive" data-step="3">
+                    <span class="step-num">Step 3</span>
+                    <span class="step-label">Review</span>
+                </div>
+            </div>
+            <!-- ── END Stepper Tabs ───────────────────────────────────── -->
+
+
+            <!-- ══════════════════════════════════════════════════════════ -->
+            <!-- STEP 1 — Asset Basics                                      -->
+            <!-- ══════════════════════════════════════════════════════════ -->
+            <div class="step-panel hidden" id="step-1">
+                <p class="section-title">Asset Basics</p>
+                <p class="section-desc">UPS identification and classification.</p>
+
+                <div class="form-grid">
+
+                    <div class="section-group-label">Required</div>
+
+                    <div class="form-group">
+                        <label class="form-label">Serial Number <span class="req">*</span></label>
+                        <input type="text" id="serialNumber" placeholder="Enter serial number" required />
+                    </div>
+
+                    <!-- Brand combobox -->
+                    <div class="form-group">
+                        <label class="form-label">Brand <span class="req">*</span></label>
+                        <div class="combo-wrapper" id="brandCombo">
+                            <input class="combo-input" type="text" id="brand" placeholder="Search brand…" autocomplete="off" />
+                            <ul class="combo-list hidden"></ul>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Model <span class="req">*</span></label>
+                        <input type="text" id="model" placeholder="e.g. Smart-UPS 1500" required />
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Status <span class="req">*</span></label>
+                        <select id="upsStatus" required>
+                            <option value="" disabled selected hidden>Select status</option>
+                            <option>Active</option>
+                            <option>Repair</option>
+                            <option>Spare</option>
+                            <option>Defective</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Asset Condition <span class="req">*</span></label>
+                        <select id="assetCondition" required>
+                            <option value="" disabled selected hidden>Select condition</option>
+                            <option>New</option>
+                            <option>Used</option>
+                        </select>
+                    </div>
+
+                    <hr class="form-divider" />
+
+                    <div class="section-group-label">Optional</div>
+
+                    <div class="form-group">
+                        <label class="form-label">Asset Tag <span class="opt">optional</span></label>
+                        <input type="text" id="assetTag" placeholder="e.g. AST-00142" />
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Computer Assigned To <span class="opt">optional</span></label>
+                        <div class="combo-wrapper" id="computerAssignedToCombo">
+                            <input class="combo-input" type="text" id="computerAssignedTo" placeholder="Search PC name or asset tag…" autocomplete="off" />
+                            <ul class="combo-list hidden"></ul>
+                        </div>
+                        <input type="hidden" id="computerAssignedToId" />
+                    </div>
+
+                </div>
+            </div>
+            <!-- ══ END STEP 1 ══════════════════════════════════════════ -->
+
+
+            <!-- ══════════════════════════════════════════════════════════ -->
+            <!-- STEP 2 — Procurement & Details                             -->
+            <!-- ══════════════════════════════════════════════════════════ -->
+            <div class="step-panel hidden" id="step-2">
+                <p class="section-title">Procurement &amp; Details</p>
+                <p class="section-desc">UPS specifications, warranty, and procurement details.</p>
+
+                <div class="form-grid">
+
+                    <div class="section-group-label">Required</div>
+
+                    <div class="form-group">
+                        <label class="form-label">Capacity (VA) <span class="req">*</span></label>
+                        <input type="text" id="capacityVa" placeholder="e.g. 1500, 3000" required />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Received Date <span class="req">*</span></label>
+                        <input type="date" id="receivedDate" required />
+                        <span class="date-hint" style="font-size:12px;color:#888;margin-top:4px;display:block;">Cannot be a future date.</span>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Warranty Expiry <span class="opt">optional</span></label>
+                        <input type="date" id="warrantyExpiry" />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Vendor / Supplier <span class="req">*</span></label>
+                        <div class="combo-wrapper" id="vendorCombo">
+                            <input class="combo-input" type="text" id="vendor" placeholder="Search vendor…" autocomplete="off" required />
+                            <ul class="combo-list hidden"></ul>
+                        </div>
+                        <input type="hidden" id="vendorId" />
+                    </div>
+
+                    <hr class="form-divider" />
+
+                    <div class="section-group-label">Optional</div>
+
+                    <div class="form-group">
+                        <label class="form-label">Battery Replace Date <span class="opt">optional</span></label>
+                        <input type="date" id="batteryReplaceDate" />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Date Deployed <span class="opt">optional</span></label>
+                        <input type="date" id="dateDeployed" />
+                        <span class="date-hint" style="font-size:12px;color:#888;margin-top:4px;display:block;">Cannot be a future date.</span>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Cost <span class="opt">optional</span></label>
+                        <input type="number" id="cost" placeholder="Enter cost" step="0.01" />
+                    </div>
+
+                    <div class="form-group full">
+                        <label class="form-label">Remarks <span class="opt">optional</span></label>
+                        <textarea id="remarks" placeholder="Enter remarks"></textarea>
+                    </div>
+
+                </div>
+            </div>
+            <!-- ══ END STEP 2 ══════════════════════════════════════════ -->
+
+
+            <!-- ══════════════════════════════════════════════════════════ -->
+            <!-- STEP 3 — Review                                            -->
+            <!-- ══════════════════════════════════════════════════════════ -->
+            <div class="step-panel hidden" id="step-3">
+                <p class="section-title">Review Asset Details</p>
+                <p class="section-desc">Review all information before submitting the asset.</p>
+
+                <div class="review-summary-container">
+
+                    <!-- Asset Basics -->
+                    <div class="review-section">
+                        <div class="section-group-label">Asset Basics</div>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label class="form-label">Serial Number</label>
+                                <span class="review-value" id="revSerialNumber">—</span>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Brand</label>
+                                <span class="review-value" id="revBrand">—</span>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Model</label>
+                                <span class="review-value" id="revModel">—</span>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Status</label>
+                                <span class="review-value" id="revUpsStatus">—</span>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Asset Condition</label>
+                                <span class="review-value" id="revAssetCondition">—</span>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Asset Tag</label>
+                                <span class="review-value" id="revAssetTag">—</span>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Computer Assigned To</label>
+                                <span class="review-value" id="revComputerAssignedTo">—</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr class="form-divider" />
+
+                    <!-- Procurement & Details -->
+                    <div class="review-section">
+                        <div class="section-group-label">Procurement &amp; Details</div>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label class="form-label">Capacity (VA)</label>
+                                <span class="review-value" id="revCapacityVa">—</span>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Received Date</label>
+                                <span class="review-value" id="revReceivedDate">—</span>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Warranty Expiry</label>
+                                <span class="review-value" id="revWarrantyExpiry">—</span>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Vendor / Supplier</label>
+                                <span class="review-value" id="revVendor">—</span>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Battery Replace Date</label>
+                                <span class="review-value" id="revBatteryReplaceDate">—</span>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Date Deployed</label>
+                                <span class="review-value" id="revDateDeployed">—</span>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Cost</label>
+                                <span class="review-value" id="revCost">—</span>
+                            </div>
+                            <div class="form-group full">
+                                <label class="form-label">Remarks</label>
+                                <span class="review-value" id="revRemarks">—</span>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+            <!-- ══ END STEP 3 ══════════════════════════════════════════ -->
+
+
+            <!-- Modal Footer — Back / Next / Submit buttons -->
+            <div class="modal-footer hidden" id="modalFooter">
+                <button id="cancelModal">Cancel</button>
+                <div class="footer-right">
+                    <button id="backBtn" class="hidden">Back</button>
+                    <button id="nextBtn" class="primary">Next →</button>
+                </div>
+            </div>
+
+        </div>
+        </div>
+        <!-- ══ END ADD ASSET MODAL ════════════════════════════════════ -->
+
+    </main>
+
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="../script/ups.js"></script>
+    <script src="../script/sidebar.js" defer></script>
+
+
+<!-- Confirmation Dialog -->
+<div id="confirmDialog" class="modal hidden confirm-dialog-overlay">
+    <div class="confirm-dialog">
+        <div class="confirm-dialog-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/>
+            </svg>
+        </div>
+        <div class="confirm-dialog-body">
+            <h3 class="confirm-dialog-title">Confirm Submission</h3>
+            <p class="confirm-dialog-message">Are you sure you want to add this asset record?</p>
+        </div>
+        <div class="confirm-dialog-actions">
+            <button id="confirmCancelBtn" class="confirm-btn confirm-btn-cancel">Cancel</button>
+            <button id="confirmOkBtn" class="confirm-btn confirm-btn-ok">Add Asset</button>
+        </div>
+    </div>
+</div>
+
+<!-- Error Toast -->
+<div id="errorToast" class="error-toast hidden">
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
+    </svg>
+    <span>Something went wrong. Please try again.</span>
+</div>
+
+</body>
+</html>

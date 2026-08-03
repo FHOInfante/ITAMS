@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IT Assets - Hardware Overview</title>
+    <link rel="stylesheet" href="../css/assets.css">
+    <link rel="stylesheet" href="../css/sidebar.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="icon" type="image/png" href="/assets/itd-logo-tab.png">
+</head>
+<body>
+
+    <div id="sidebar-container"></div>
+
+    <main class="main-content">
+
+        <div class="page-header">
+            <p class="page-breadcrumb">IT ASSETS</p>
+            <h1 class="page-title">Asset Overview</h1>
+        </div>
+
+        <!-- ── Hardware Group ──────────────────────────────────── -->
+        <div class="asset-group collapsed " id="groupHardware">
+            <button class="asset-group-header" onclick="toggleGroup('groupHardware')" type="button">
+                <div class="asset-group-header-left">
+                    <div class="asset-group-icon"><i data-lucide="boxes"></i></div>
+                    <div>
+                        <span class="asset-group-title">Hardware Assets</span>
+                        <span class="asset-group-subtitle">Physical devices, peripherals, and network equipment</span>
+                    </div>
+                </div>
+                <div class="asset-group-toggle">
+                    <i data-lucide="chevron-down" class="group-chevron"></i>
+                </div>
+            </button>
+
+            <div class="asset-group-body">
+                <div class="category-grid">
+
+                    <!-- Laptop / Desktop -->
+                    <a href="computer.html" class="category-card">
+                        <div class="category-icon-wrap"><i data-lucide="monitor"></i></div>
+                        <div class="category-info">
+                            <span class="category-name">Laptop / Desktop</span>
+                            <span class="category-desc">Existing computer assets, assignments, transfers, and 201 files.</span>
+                        </div>
+                        <div class="category-right">
+                            <div class="category-filter" id="filterComputer"></div>
+                            <div class="category-total-wrap">
+                                <span class="category-total-label">Total</span>
+                                <span class="category-count" id="countComputer">—</span>
+                            </div>
+                            <div class="category-card-arrow"><i data-lucide="chevron-right"></i></div>
+                        </div>
+                        <div class="category-stats" id="statsComputer"></div>
+                    </a>
+
+                    <!-- UPS -->
+                    <a href="ups.html" class="category-card">
+                        <div class="category-icon-wrap"><i data-lucide="zap"></i></div>
+                        <div class="category-info">
+                            <span class="category-name">UPS</span>
+                            <span class="category-desc">Power backup units, battery schedules, capacities, and warranties.</span>
+                        </div>
+                        <div class="category-right">
+                            <div class="category-filter" id="filterUps"></div>
+                            <div class="category-total-wrap">
+                                <span class="category-total-label">Total</span>
+                                <span class="category-count" id="countUps">—</span>
+                            </div>
+                            <div class="category-card-arrow"><i data-lucide="chevron-right"></i></div>
+                        </div>
+                        <div class="category-stats" id="statsUps"></div>
+                    </a>
+
+                    <!-- Printers -->
+                    <a href="printers.html" class="category-card">
+                        <div class="category-icon-wrap"><i data-lucide="printer"></i></div>
+                        <div class="category-info">
+                            <span class="category-name">Printers</span>
+                            <span class="category-desc">Printer inventory, connectivity, addresses, and color capability.</span>
+                        </div>
+                        <div class="category-right">
+                            <div class="category-filter" id="filterPrinter"></div>
+                            <div class="category-total-wrap">
+                                <span class="category-total-label">Total</span>
+                                <span class="category-count" id="countPrinter">—</span>
+                            </div>
+                            <div class="category-card-arrow"><i data-lucide="chevron-right"></i></div>
+                        </div>
+                        <div class="category-stats" id="statsPrinter"></div>
+                    </a>
+
+                    <!-- Network Devices -->
+                    <a href="networkDevices.html" class="category-card">
+                        <div class="category-icon-wrap"><i data-lucide="server"></i></div>
+                        <div class="category-info">
+                            <span class="category-name">Network Devices</span>
+                            <span class="category-desc">Switches, access points, routers, firewalls, and related devices.</span>
+                        </div>
+                        <div class="category-right">
+                            <div class="category-filter" id="filterNetwork"></div>
+                            <div class="category-total-wrap">
+                                <span class="category-total-label">Total</span>
+                                <span class="category-count" id="countNetwork">—</span>
+                            </div>
+                            <div class="category-card-arrow"><i data-lucide="chevron-right"></i></div>
+                        </div>
+                        <div class="category-stats" id="statsNetwork"></div>
+                    </a>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Software Group ──────────────────────────────────── -->
+        <div class="asset-group collapsed " id="groupSoftware">
+            <button class="asset-group-header" onclick="toggleGroup('groupSoftware')" type="button">
+                <div class="asset-group-header-left">
+                    <div class="asset-group-icon"><i data-lucide="package"></i></div>
+                    <div>
+                        <span class="asset-group-title">Software Assets</span>
+                        <span class="asset-group-subtitle">License inventory, renewals, vendors, and subscription tracking</span>
+                    </div>
+                </div>
+                <div class="asset-group-toggle">
+                    <i data-lucide="chevron-down" class="group-chevron"></i>
+                </div>
+            </button>
+
+            <div class="asset-group-body">
+                <div class="category-grid">
+
+                    <!-- Software Licenses -->
+                    <a href="software.html" class="category-card">
+                        <div class="category-icon-wrap"><i data-lucide="app-window"></i></div>
+                        <div class="category-info">
+                            <span class="category-name">Software Licenses</span>
+                            <span class="category-desc">License inventory, renewal schedules, vendors, and subscription tracking.</span>
+                        </div>
+                        <div class="category-right">
+                            <div class="category-filter" id="filterSoftware"></div>
+                            <div class="category-total-wrap">
+                                <span class="category-total-label">Unique Titles</span>
+                                <span class="category-count" id="countSoftware">—</span>
+                            </div>
+                            <div class="category-card-arrow"><i data-lucide="chevron-right"></i></div>
+                        </div>
+                        <div class="category-stats" id="statsSoftware"></div>
+                    </a>
+
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <script src="../script/assets.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="../script/sidebar.js" defer></script>
+
+    <script>
+        function toggleGroup(id) {
+            const group = document.getElementById(id);
+            group.classList.toggle("collapsed");
+        }
+    </script>
+
+</body>
+</html>

@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Maintenance</title>
+
+    <link rel="stylesheet" href="../css/sidebar.css">
+    <link rel="stylesheet" href="../css/shared.css">
+    <link rel="stylesheet" href="../css/fileMaintenance.css">
+
+    <script>
+      if (!localStorage.getItem("token")) { window.location.href = "../index.html"; }
+      else { const _p = JSON.parse(localStorage.getItem("permissions") || "[]"); if (![15,16,17,18,19,20].some(id => _p.includes(id))) { window.location.href = "../dashboard.html"; } }
+      const __origFetch = window.fetch;
+      window.fetch = function(u, o) {
+        return __origFetch.call(this, u, o).then(function(r) {
+          if (r.status === 401) { localStorage.clear(); window.location.href = "../index.html"; }
+          return r;
+        });
+      };
+    </script>
+
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="../script/fileMaintenance.js" defer></script>
+</head>
+<body>
+    <div class="app-layout">
+        <div id="sidebarContainer"></div>
+
+        <main class="main-content">
+            <div class="page-heading">
+                <h1 class="page-title">File Maintenance</h1>
+            </div>
+
+            <div class="page-content">
+                <!-- Tab Navigation -->
+                <nav class="fm-tabs" id="fmTabs">
+                    <button class="fm-tab active" data-tab="computer">Computer</button>
+                    <button class="fm-tab" data-tab="printer">Printer</button>
+                    <button class="fm-tab" data-tab="network">Network Device</button>
+                    <button class="fm-tab" data-tab="ups">UPS</button>
+                    <button class="fm-tab" data-tab="software">Software</button>
+                    <button class="fm-tab" data-tab="others">Others</button>
+                </nav>
+
+                <div class="fm-panel active" id="panel-computer">
+                    <section class="category-grid" id="categoryGrid-computer"></section>
+                </div>
+                <div class="fm-panel" id="panel-printer">
+                    <section class="category-grid" id="categoryGrid-printer"></section>
+                </div>
+                <div class="fm-panel" id="panel-network">
+                    <section class="category-grid" id="categoryGrid-network"></section>
+                </div>
+                <div class="fm-panel" id="panel-ups">
+                    <section class="category-grid" id="categoryGrid-ups"></section>
+                </div>
+                <div class="fm-panel" id="panel-software">
+                    <section class="category-grid" id="categoryGrid-software"></section>
+                </div>
+                <div class="fm-panel" id="panel-others">
+                    <section class="category-grid" id="categoryGrid-others"></section>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Card template -->
+    <template id="categoryCardTemplate">
+        <article class="category-card">
+            <div class="category-card-header">
+                <div>
+                    <h3></h3>
+                    <p class="category-count">0 records</p>
+                </div>
+            </div>
+            <div class="category-search">
+                <input type="text">
+                <button type="button" class="btn-primary category-add-btn">
+                    <i data-lucide="plus"></i>
+                    Add
+                </button>
+            </div>
+            <div class="category-list"></div>
+        </article>
+    </template>
+
+    <!-- ── Confirm Add Modal ──────────────────────────────────────────── -->
+    <div id="confirmAddModal" class="modal hidden">
+        <div class="modal-content modal-sm">
+            <div class="modal-header">
+                <div>
+                    <h2 id="confirmAddTitle">Confirm Add</h2>
+                    <p>Review the entry before saving.</p>
+                </div>
+                <button class="modal-close-btn" id="confirmAddClose">×</button>
+            </div>
+            <div class="modal-body">
+                <div id="confirmAddBody"></div>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" id="confirmAddCancel">Cancel</button>
+                    <button type="button" class="btn-primary"   id="confirmAddSubmit">Confirm Add</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+  <!-- ── Alert Modal ──────────────────────────────────────────────────── -->
+  <div id="alertModal" class="modal hidden">
+    <div class="modal-content" style="max-width:400px;text-align:center">
+      <div class="modal-body" style="padding:32px 24px">
+        <p id="alertModalMessage" style="margin:0 0 20px;font-size:15px;color:#0f172a"></p>
+        <button id="alertModalOk" class="btn-primary" style="min-width:100px">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Edit Name Modal ──────────────────────────────────────────────── -->
+  <div id="editNameModal" class="modal hidden">
+    <div class="modal-content" style="max-width:420px">
+      <div class="modal-header">
+        <h2 id="editNameModalTitle">Edit Name</h2>
+        <button class="modal-close-btn" id="editNameCloseBtn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label id="editNameModalLabel" for="editNameInput">Name</label>
+          <input type="text" id="editNameInput" class="form-input" />
+        </div>
+        <div class="form-actions" style="margin-top:16px">
+          <button type="button" class="btn-secondary" id="editNameCancelBtn">Cancel</button>
+          <button type="button" class="btn-primary" id="editNameSaveBtn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/>
+              <path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/>
+              <path d="M7 3v4a1 1 0 0 0 1 1h7"/>
+            </svg>
+            Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Edit Program Modal ───────────────────────────────────────────── -->
+  <div id="editProgramModal" class="modal hidden">
+    <div class="modal-content" style="max-width:420px">
+      <div class="modal-header">
+        <h2>Edit Program</h2>
+        <button class="modal-close-btn" id="editProgramCloseBtn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="editProgramInput">Program name</label>
+          <input type="text" id="editProgramInput" class="form-input" />
+        </div>
+        <div class="form-actions" style="margin-top:16px">
+          <button type="button" class="btn-secondary" id="editProgramCancelBtn">Cancel</button>
+          <button type="button" class="btn-primary" id="editProgramSaveBtn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/>
+              <path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/>
+              <path d="M7 3v4a1 1 0 0 0 1 1h7"/>
+            </svg>
+            Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+    <script src="../script/sidebar.js" defer></script>
+</body>
+</html>>

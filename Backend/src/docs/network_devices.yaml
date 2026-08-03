@@ -1,0 +1,652 @@
+paths:
+  /network-device:
+    get:
+      summary: Retrieve all network devices
+      description: >
+        Returns a list of all network device records in the system.
+
+
+        Required permission: Authenticated user (bearer token). No specific permission number required for read access.
+      tags:
+        - Network Devices
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: List of network devices retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/NetworkDevice"
+              examples:
+                success:
+                  summary: Mixed status network devices
+                  value:
+                    - network_device_id: 1
+                      network_device_name: "Core Switch - Lobby"
+                      asset_tag: "ND-0001"
+                      asset_location: "GF"
+                      serial_no: "SN-SW-001"
+                      brand: "Cisco"
+                      vendor: "CDW Philippines"
+                      model: "Catalyst 2960"
+                      device_type: "Switch"
+                      ip_address: "192.168.1.1"
+                      mac_address: "AA:BB:CC:DD:EE:01"
+                      port_count: 24
+                      firmware_version: "15.2(7)E6"
+                      asset_status: "Active"
+                      asset_condition: "New"
+                      received_date: "2023-01-15"
+                      warranty_expiry: "2026-01-15"
+                      date_deployed: "2023-01-20"
+                      cost: 85000.00
+                      remarks: null
+                    - network_device_id: 2
+                      network_device_name: null
+                      asset_tag: null
+                      asset_location: "8F"
+                      serial_no: "SN-FW-099"
+                      brand: "Fortinet"
+                      vendor: "Globe Telecom"
+                      model: "FortiGate 60F"
+                      device_type: "Firewall"
+                      ip_address: null
+                      mac_address: null
+                      port_count: null
+                      firmware_version: null
+                      asset_status: "Defective"
+                      asset_condition: "Used"
+                      received_date: "2021-09-10"
+                      warranty_expiry: "2024-09-10"
+                      date_deployed: null
+                      cost: null
+                      remarks: "Unit failed after power surge"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+    post:
+      summary: Add a new network device
+      description: >
+        Creates a new network device record.
+
+
+        **Required Permission: 13 (Add Asset - Network Device)** — Accessible by: '**IT Manager**', '**IT Supervisor**', and '**Network Admin**'
+
+
+        **Required fields:** serialNo, brand, vendor, model,
+        deviceType, assetStatus, receivedDate.
+
+
+        **Note:** warrantyExpiry is optional and defaults to null if omitted.
+
+
+        **ENUMs:**
+
+        - assetLocation (optional): **B2, B1, GF, 2F, 3F, 4F, 5F, 6F, 7F, 8F, PO**
+
+        - assetStatus: **Active, Repair, Spare, Defective**
+
+        - assetCondition: **New, Used** — defaults to **New** if omitted
+      tags:
+        - Network Devices
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NetworkDeviceBody"
+            examples:
+              minimal:
+                summary: Required fields only (assetLocation omitted)
+                value:
+                  serialNo: "SN-SW-002"
+                  brand: "Cisco"
+                  vendor: "CDW Philippines"
+                  model: "Catalyst 2960"
+                  deviceType: "Switch"
+                  assetStatus: "Spare"
+                  receivedDate: "2024-03-01"
+                  warrantyExpiry: "2027-03-01"
+              full:
+                summary: All fields including optional
+                value:
+                  deviceName: "Core Switch - 3F"
+                  assetTag: "ND-0002"
+                  assetLocation: "3F"
+                  serialNo: "SN-SW-003"
+                  brand: "Cisco"
+                  vendor: "CDW Philippines"
+                  model: "Catalyst 2960"
+                  deviceType: "Switch"
+                  ipAddress: "192.168.3.1"
+                  macAddress: "AA:BB:CC:DD:EE:03"
+                  portCount: 48
+                  firmwareVersion: "15.2(7)E6"
+                  assetStatus: "Active"
+                  assetCondition: "New"
+                  receivedDate: "2024-03-01"
+                  warrantyExpiry: "2027-03-01"
+                  dateDeployed: "2024-03-05"
+                  cost: 90000.00
+                  remarks: "Installed in server rack 3F-A"
+              usedCondition:
+                summary: Used condition device
+                value:
+                  assetLocation: "B1"
+                  serialNo: "SN-AP-010"
+                  brand: "Ubiquiti"
+                  vendor: "DataServ"
+                  model: "UniFi AP AC Pro"
+                  deviceType: "Access Point"
+                  assetStatus: "Spare"
+                  assetCondition: "Used"
+                  receivedDate: "2022-06-01"
+                  warrantyExpiry: "2025-06-01"
+              defective:
+                summary: Defective device being logged
+                value:
+                  assetLocation: "8F"
+                  serialNo: "SN-FW-099"
+                  brand: "Fortinet"
+                  vendor: "Globe Telecom"
+                  model: "FortiGate 60F"
+                  deviceType: "Firewall"
+                  assetStatus: "Defective"
+                  receivedDate: "2021-09-10"
+                  warrantyExpiry: "2024-09-10"
+                  remarks: "Unit failed after power surge"
+      responses:
+        "201":
+          description: Network device added successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              examples:
+                success:
+                  summary: Created
+                  value:
+                    message: "Network device added successfully"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              examples:
+                missingFields:
+                  summary: Missing required fields
+                  value:
+                    message: "Missing required fields"
+                invalidLocation:
+                  summary: Invalid asset location
+                  value:
+                    message: "Invalid asset location value"
+                invalidStatus:
+                  summary: Invalid asset status
+                  value:
+                    message: "Invalid asset status value"
+                invalidCondition:
+                  summary: Invalid asset condition
+                  value:
+                    message: "Invalid asset condition value"
+                invalidPortCount:
+                  summary: portCount is not a positive integer
+                  value:
+                    message: "Invalid port count value"
+                invalidCost:
+                  summary: cost is negative or not a number
+                  value:
+                    message: "Invalid cost value"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  "/network-device/:id":
+    get:
+      summary: Retrieve a network device by ID
+      description: >
+        Returns a single network device record by its ID.
+
+
+        Required permission: Authenticated user (bearer token). No specific permission number required for read access.
+      tags:
+        - Network Devices
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The network device ID
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "200":
+          description: Network device retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NetworkDevice"
+              examples:
+                active:
+                  summary: Active device with all fields
+                  value:
+                    network_device_id: 1
+                    network_device_name: "Core Switch - Lobby"
+                    asset_tag: "ND-0001"
+                    asset_location: "GF"
+                    serial_no: "SN-SW-001"
+                    brand: "Cisco"
+                    vendor: "CDW Philippines"
+                    model: "Catalyst 2960"
+                    device_type: "Switch"
+                    ip_address: "192.168.1.1"
+                    mac_address: "AA:BB:CC:DD:EE:01"
+                    port_count: 24
+                    firmware_version: "15.2(7)E6"
+                    asset_status: "Active"
+                    asset_condition: "New"
+                    received_date: "2023-01-15"
+                    warranty_expiry: "2026-01-15"
+                    date_deployed: "2023-01-20"
+                    cost: 85000.00
+                    remarks: null
+                sparse:
+                  summary: Minimal record with nullable fields null
+                  value:
+                    network_device_id: 2
+                    network_device_name: null
+                    asset_tag: null
+                    asset_location: "B2"
+                    serial_no: "SN-AP-010"
+                    brand: "Ubiquiti"
+                    vendor: "DataServ"
+                    model: "UniFi AP AC Pro"
+                    device_type: "Access Point"
+                    ip_address: null
+                    mac_address: null
+                    port_count: null
+                    firmware_version: null
+                    asset_status: "Spare"
+                    asset_condition: "Used"
+                    received_date: "2022-06-01"
+                    warranty_expiry: "2025-06-01"
+                    date_deployed: null
+                    cost: null
+                    remarks: null
+        "400":
+          description: Missing or invalid network device ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              examples:
+                missingId:
+                  summary: Missing ID
+                  value:
+                    message: "Missing network device ID"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          description: Not Found — Network device not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              examples:
+                notFound:
+                  summary: Not found
+                  value:
+                    message: "Network device not found"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+    put:
+      summary: Update a network device
+      description: >
+        Fully updates an existing network device record. All required fields
+        must be supplied; omitted optional fields are set to null.
+
+
+        **Required Permission: 28 (Edit Asset - Network Device)** — Accessible by: '**IT Manager**', '**IT Supervisor**', and '**Network Admin**'
+
+
+        **Required fields:** serialNo, brand, vendor, model,
+        deviceType, assetStatus, receivedDate.
+
+
+        **Note:** warrantyExpiry is optional and defaults to null if omitted.
+
+
+        **ENUMs:**
+
+        - assetLocation (optional): **B2, B1, GF, 2F, 3F, 4F, 5F, 6F, 7F, 8F, PO**
+
+        - assetStatus: **Active, Repair, Spare, Defective**
+
+        - assetCondition: **New, Used** — defaults to **New** if omitted
+      tags:
+        - Network Devices
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The network device ID
+          schema:
+            type: integer
+            minimum: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NetworkDeviceBody"
+            examples:
+              statusToRepair:
+                summary: Mark as Repair and add remark
+                value:
+                  assetLocation: "3F"
+                  serialNo: "SN-SW-003"
+                  brand: "Cisco"
+                  vendor: "CDW Philippines"
+                  model: "Catalyst 2960"
+                  deviceType: "Switch"
+                  assetStatus: "Repair"
+                  assetCondition: "Used"
+                  receivedDate: "2024-03-01"
+                  warrantyExpiry: "2027-03-01"
+                  remarks: "Sent to service center"
+              updateFirmware:
+                summary: Update firmware version only
+                value:
+                  assetLocation: "3F"
+                  serialNo: "SN-SW-003"
+                  brand: "Cisco"
+                  vendor: "CDW Philippines"
+                  model: "Catalyst 2960"
+                  deviceType: "Switch"
+                  firmwareVersion: "15.2(7)E8"
+                  assetStatus: "Active"
+                  assetCondition: "New"
+                  receivedDate: "2024-03-01"
+                  warrantyExpiry: "2027-03-01"
+              clearLocation:
+                summary: Update without assetLocation (clears it to null)
+                value:
+                  serialNo: "SN-SW-003"
+                  brand: "Cisco"
+                  vendor: "CDW Philippines"
+                  model: "Catalyst 2960"
+                  deviceType: "Switch"
+                  assetStatus: "Active"
+                  assetCondition: "New"
+                  receivedDate: "2024-03-01"
+                  warrantyExpiry: "2027-03-01"
+      responses:
+        "200":
+          description: Network device updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              examples:
+                success:
+                  summary: Updated
+                  value:
+                    message: "Network device updated successfully"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              examples:
+                missingId:
+                  summary: Missing network device ID
+                  value:
+                    message: "Missing network device ID"
+                missingFields:
+                  summary: Missing required fields
+                  value:
+                    message: "Missing required fields"
+                invalidLocation:
+                  summary: Invalid asset location
+                  value:
+                    message: "Invalid asset location value"
+                invalidStatus:
+                  summary: Invalid asset status
+                  value:
+                    message: "Invalid asset status value"
+                invalidCondition:
+                  summary: Invalid asset condition
+                  value:
+                    message: "Invalid asset condition value"
+                invalidPortCount:
+                  summary: portCount is not a positive integer
+                  value:
+                    message: "Invalid port count value"
+                invalidCost:
+                  summary: cost is negative or not a number
+                  value:
+                    message: "Invalid cost value"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          description: Not Found — Network device not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+              examples:
+                notFound:
+                  summary: Not found
+                  value:
+                    message: "Network device not found"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+components:
+  schemas:
+    NetworkDevice:
+      type: object
+      properties:
+        network_device_id:
+          type: integer
+          example: 1
+        network_device_name:
+          type: string
+          nullable: true
+          example: "Core Switch - Lobby"
+        asset_tag:
+          type: string
+          nullable: true
+          example: "ND-0001"
+        asset_location:
+          type: string
+          nullable: true
+          enum: [B2, B1, GF, 2F, 3F, 4F, 5F, 6F, 7F, 8F, PO]
+          example: "GF"
+        serial_no:
+          type: string
+          example: "SN-SW-001"
+        brand:
+          type: string
+          example: "Cisco"
+        vendor:
+          type: string
+          example: "CDW Philippines"
+        model:
+          type: string
+          example: "Catalyst 2960"
+        device_type:
+          type: string
+          example: "Switch"
+        ip_address:
+          type: string
+          nullable: true
+          example: "192.168.1.1"
+        mac_address:
+          type: string
+          nullable: true
+          example: "AA:BB:CC:DD:EE:01"
+        port_count:
+          type: integer
+          nullable: true
+          minimum: 1
+          maximum: 255
+          example: 24
+        firmware_version:
+          type: string
+          nullable: true
+          example: "15.2(7)E6"
+        asset_status:
+          type: string
+          enum: [Active, Repair, Spare, Defective]
+          example: "Active"
+        asset_condition:
+          type: string
+          enum: [New, Used]
+          example: "New"
+        received_date:
+          type: string
+          format: date
+          example: "2023-01-15"
+        warranty_expiry:
+          type: string
+          format: date
+          nullable: true
+          example: "2026-01-15"
+        date_deployed:
+          type: string
+          format: date
+          nullable: true
+          example: "2023-01-20"
+        cost:
+          type: number
+          format: decimal
+          nullable: true
+          minimum: 0
+          example: 85000.00
+        remarks:
+          type: string
+          nullable: true
+          example: null
+
+    NetworkDeviceBody:
+      type: object
+      required:
+        - serialNo
+        - brand
+        - vendor
+        - model
+        - deviceType
+        - assetStatus
+        - receivedDate
+      properties:
+        deviceName:
+          type: string
+          nullable: true
+          example: "Core Switch - 3F"
+        assetTag:
+          type: string
+          nullable: true
+          example: "ND-0002"
+        assetLocation:
+          type: string
+          nullable: true
+          enum: [B2, B1, GF, 2F, 3F, 4F, 5F, 6F, 7F, 8F, PO]
+          example: "3F"
+        serialNo:
+          type: string
+          example: "SN-SW-003"
+        brand:
+          type: string
+          example: "Cisco"
+        vendor:
+          type: string
+          example: "CDW Philippines"
+        model:
+          type: string
+          example: "Catalyst 2960"
+        deviceType:
+          type: string
+          example: "Switch"
+        ipAddress:
+          type: string
+          nullable: true
+          example: "192.168.3.1"
+        macAddress:
+          type: string
+          nullable: true
+          example: "AA:BB:CC:DD:EE:03"
+        portCount:
+          type: integer
+          nullable: true
+          minimum: 1
+          maximum: 255
+          example: 48
+        firmwareVersion:
+          type: string
+          nullable: true
+          example: "15.2(7)E6"
+        assetStatus:
+          type: string
+          enum: [Active, Repair, Spare, Defective]
+          example: "Active"
+        assetCondition:
+          type: string
+          enum: [New, Used]
+          description: Defaults to New if omitted.
+          example: "New"
+        receivedDate:
+          type: string
+          format: date
+          example: "2024-03-01"
+        warrantyExpiry:
+          type: string
+          format: date
+          nullable: true
+          description: Optional. Defaults to null if omitted.
+          example: "2027-03-01"
+        dateDeployed:
+          type: string
+          format: date
+          nullable: true
+          example: "2024-03-05"
+        cost:
+          type: number
+          format: decimal
+          nullable: true
+          minimum: 0
+          example: 90000.00
+        remarks:
+          type: string
+          nullable: true
+          example: null
+
+    MessageResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "Operation successful"

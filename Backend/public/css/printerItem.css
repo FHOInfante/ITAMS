@@ -1,0 +1,10 @@
+/* ============================================================
+   printerItem.css
+   Page-specific overrides for the Printer Detail / Edit page
+   (printerItem.html). Shared design system lives in
+   assetsItemSharedStyle.css — link that FIRST, this SECOND.
+
+   No printer-specific overrides needed at this time — this
+   file is kept as a placeholder so future printer-only tweaks
+   have a home without touching the shared stylesheet.
+   ============================================================ */

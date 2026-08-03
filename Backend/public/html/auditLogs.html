@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Audit Logs</title>
+  <link rel="stylesheet" href="../css/sidebar.css">
+  <link rel="stylesheet" href="../css/shared.css">
+  <link rel="stylesheet" href="../css/auditLogs.css">
+  <script>
+    if (!localStorage.getItem("token")) { window.location.href = "../index.html"; }
+    else { const _p = JSON.parse(localStorage.getItem("permissions") || "[]"); if (![1,2,3,4,5,6].some(id => _p.includes(id))) { window.location.href = "../dashboard.html"; } }
+    const __origFetch = window.fetch;
+    window.fetch = function(u, o) {
+      return __origFetch.call(this, u, o).then(function(r) {
+        if (r.status === 401) { localStorage.clear(); window.location.href = "../index.html"; }
+        return r;
+      });
+    };
+  </script>
+</head>
+<body>
+
+  <div id="sidebar-container"></div>
+
+  <div class="page">
+    <div class="page-heading">
+      <h1 class="page-title">Audit Logs</h1>
+    </div>
+    <div class="audit-layout">
+
+      <!-- ── Left: Category Labels + Action List (single scrollable panel) ──── -->
+      <div class="audit-list-panel">
+        <div class="panel-header">
+          <h2>Filter by Action</h2>
+          <button class="action-clear-btn" id="btnClearActions">Clear</button>
+        </div>
+
+        <div class="action-list" id="actionList"></div>
+      </div>
+
+      <!-- ── Right: Table Panel ──────────────────────────────────────── -->
+      <div class="audit-detail-panel">
+
+        <!-- Table toolbar -->
+        <div class="table-toolbar">
+          <div class="search-box">
+            <i data-lucide="search"></i>
+            <input type="text" id="filterUser" placeholder="Search by name or employee ID…" />
+          </div>
+
+          <div class="toolbar-right">
+            <button class="btn-filter-toggle" id="btnFilterToggle" title="Toggle filters">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/></svg>
+            </button>
+
+            <select id="filterAssetType" class="toolbar-select">
+              <option value="">All Types</option>
+              <option value="computer">Computer</option>
+              <option value="software">Software</option>
+              <option value="printer">Printer</option>
+              <option value="ups">UPS</option>
+              <option value="network-device">Network Device</option>
+              <option value="purchase-request">Purchase Request</option>
+              <option value="user">User</option>
+              <option value="end-user">End User</option>
+            </select>
+
+            <select id="filterActor" class="toolbar-select">
+              <option value="">All Actors</option>
+            </select>
+
+            <select id="filterDatePreset" class="toolbar-select">
+              <option value="">All Time</option>
+              <option value="today">Today</option>
+              <option value="7d">Last 7 days</option>
+              <option value="30d">Last 30 days</option>
+              <option value="custom">Custom range…</option>
+            </select>
+
+            <div id="filterCustomDates" class="custom-dates hidden">
+              <input type="date" id="filterFrom" class="toolbar-date-input" />
+              <span class="custom-dates-sep">to</span>
+              <input type="date" id="filterTo" class="toolbar-date-input" />
+            </div>
+
+            <button class="btn-secondary" id="btnClearFilters" title="Reset all filters">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Table card (End User style) -->
+        <div class="table-wrapper">
+          <div class="table-header">
+            <div class="table-header-left">
+              <h2 id="tableHeading">All Log Entries</h2>
+            </div>
+            <div class="table-header-right">
+              <span class="log-count" id="logCount">— entries</span>
+              <span class="active-filters-strip" id="activeFiltersStrip"></span>
+            </div>
+          </div>
+
+          <div class="table-scroll-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Full Name (Affected)</th>
+                  <th>Date</th>
+                  <th>Transaction</th>
+                  <th>Fields</th>
+                  <th>Old Value</th>
+                  <th>New Value</th>
+                  <th>User Name (Actor)</th>
+                </tr>
+              </thead>
+              <tbody id="logTableBody">
+                <tr class="state-row">
+                  <td colspan="7">
+                    <div class="spinner"></div>
+                    Loading audit logs…
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="pagination" id="paginationBar">
+          <span id="paginationInfo"></span>
+          <div class="pagination-btns" id="paginationBtns"></div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Record History Modal ───────────────────────────────────────────── -->
+  <div id="historyModal" class="modal hidden">
+    <div class="diff-modal-content modal-content modal-lg">
+      <div class="diff-modal-header modal-header">
+        <div>
+          <h2 id="historyModalTitle">Record History</h2>
+          <p id="historyModalMeta"></p>
+        </div>
+        <button class="modal-close-btn" id="btnCloseHistoryModal">×</button>
+      </div>
+      <div class="diff-modal-body modal-body" id="historyModalBody"></div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="../script/sidebar.js" defer></script>
+  <script src="../script/auditLogs.js" defer></script>
+</body>
+</html>

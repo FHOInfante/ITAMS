@@ -1,0 +1,255 @@
+paths:
+  /department:
+    get:
+      summary: Get all departments
+      description: >
+        Returns a list of all departments in the system, ordered alphabetically
+        by department name.
+
+
+        Required permission: Authenticated user (bearer token). No specific permission number required for read access.
+      tags:
+        - Departments
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: List of departments retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Department"
+              example:
+                - department_id: 13
+                  department_name: "IT Department"
+                - department_id: 6
+                  department_name: "Billing Deparment"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              examples:
+                noToken:
+                  value:
+                    message: "Unauthorized Access: No Token Provided"
+                invalidToken:
+                  value:
+                    message: "Unauthorized Access: Invalid Token"
+        "403":
+          description: Forbidden - User does not have permission 15 (Manage End User)
+          content:
+            application/json:
+              example:
+                message: "Forbidden: Insufficient permissions"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              example:
+                message: "Something went wrong"
+
+    post:
+      summary: Add a new department
+      description: >
+        Creates a new department record. The department name must be unique
+        (case-sensitive exact match in the database).
+
+
+        **Required Permission: 15 (Add New Department)** — Accessible by: '**IT Manager**' and '**IT Supervisor**'
+
+
+        Required fields (NOT NULL): departmentName
+      tags:
+        - Departments
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DepartmentInput"
+            examples:
+              validDepartment:
+                summary: Valid new department
+                value:
+                  departmentName: "Radiology Department"
+              missingName:
+                summary: Missing departmentName - triggers 400
+                value: {}
+              emptyName:
+                summary: Empty string departmentName - triggers 400
+                value:
+                  departmentName: ""
+              duplicateName:
+                summary: Department name already exists - triggers 409
+                value:
+                  departmentName: "IT Department"
+      responses:
+        "201":
+          description: Department added successfully
+          content:
+            application/json:
+              example:
+                message: "Department added successfully"
+        "400":
+          description: Missing or invalid departmentName
+          content:
+            application/json:
+              example:
+                message: "Missing or invalid departmentName"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              examples:
+                noToken:
+                  value:
+                    message: "Unauthorized Access: No Token Provided"
+                invalidToken:
+                  value:
+                    message: "Unauthorized Access: Invalid Token"
+        "403":
+          description: Forbidden - User does not have permission 15 (Manage End User)
+          content:
+            application/json:
+              example:
+                message: "Forbidden: Insufficient permissions"
+        "409":
+          description: Conflict - Department name already exists
+          content:
+            application/json:
+              example:
+                message: "A department with this name already exists"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              example:
+                message: "Something went wrong"
+
+  "/department/:id":
+    put:
+      summary: Update a department's name
+      description: >
+        Updates the name of an existing department. If the new name is the same
+        as the current name (case-insensitive), the uniqueness check is skipped.
+        Otherwise, the new name must not conflict with any other existing department.
+
+
+        **Required Permission: 31 (Edit Department Details)** — Accessible by: '**IT Manager**' and '**IT Supervisor**'
+
+
+        Required fields (NOT NULL): departmentName
+      tags:
+        - Departments
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+          description: The department_id of the department to update
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DepartmentInput"
+            examples:
+              validUpdate:
+                summary: Rename to a new unique name
+                value:
+                  departmentName: "Radiology and Imaging Department"
+              sameNameUpdate:
+                summary: Updating with the same name (no conflict check triggered)
+                value:
+                  departmentName: "IT Department"
+              conflictingName:
+                summary: New name already taken by another department - triggers 409
+                value:
+                  departmentName: "Billing Deparment"
+              notFoundDepartment:
+                summary: Department ID does not exist - triggers 404
+                value:
+                  departmentName: "Some Department"
+              missingName:
+                summary: Missing departmentName - triggers 400
+                value: {}
+      responses:
+        "200":
+          description: Department updated successfully
+          content:
+            application/json:
+              example:
+                message: "Department updated successfully"
+        "400":
+          description: Missing or invalid input
+          content:
+            application/json:
+              examples:
+                missingId:
+                  summary: Path ID is 0 or non-numeric
+                  value:
+                    message: "Missing department ID"
+                missingName:
+                  value:
+                    message: "Missing or invalid departmentName"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              examples:
+                noToken:
+                  value:
+                    message: "Unauthorized Access: No Token Provided"
+                invalidToken:
+                  value:
+                    message: "Unauthorized Access: Invalid Token"
+        "403":
+          description: Forbidden - User does not have permission 15 (Manage End User)
+          content:
+            application/json:
+              example:
+                message: "Forbidden: Insufficient permissions"
+        "404":
+          description: Not Found — Department not found
+          content:
+            application/json:
+              example:
+                message: "Department not found"
+        "409":
+          description: Conflict - Department name already exists
+          content:
+            application/json:
+              example:
+                message: "A department with this name already exists"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              example:
+                message: "Something went wrong"
+
+components:
+  schemas:
+    DepartmentInput:
+      type: object
+      required:
+        - departmentName
+      properties:
+        departmentName:
+          type: string
+          description: Name of the department. Must be unique. REQUIRED.
+
+    Department:
+      type: object
+      properties:
+        department_id:
+          type: integer
+        department_name:
+          type: string

@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Network Device Detail</title>
+
+    <link rel="stylesheet" href="../css/sidebar.css">
+    <link rel="stylesheet" href="../css/assetsItemSharedStyle.css">
+    <link rel="stylesheet" href="../css/networkDevicesItem.css">
+
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="icon" type="image/png" href="/assets/itd-logo.png">
+    <link rel="icon" type="image/png" href="/assets/itd-logo-tab.png">
+</head>
+<body class="view-mode">
+
+    <!-- Sidebar gets injected here -->
+    <div id="sidebar-container"></div>
+
+    <main class="main-content">
+
+        <!-- ── Page Header ──────────────────────────────────────── -->
+        <div class="page-header">
+            <div>
+                <div class="breadcrumb">
+                    <a href="networkDevices.html">IT Assets</a>
+                    <span class="breadcrumb-sep">></span>
+                    <a href="networkDevices.html">Network Devices</a>
+                    <span class="breadcrumb-sep">></span>
+                    <span id="breadcrumbName">Loading…</span>
+                </div>
+                <h1 class="page-title" id="pageTitle">Network Device Detail</h1>
+            </div>
+            <div class="header-actions">
+                <span class="status-badge" id="statusBadge">—</span>
+
+                <!-- View mode actions (button swapped by JS based on permission 28) -->
+                <div class="view-only" id="viewActions">
+                    <div class="perm-btn-wrapper" data-tooltip="You need Edit Asset - Network Device (permission 28) to edit.">
+                        <button class="btn-secondary perm-locked" disabled>
+                            <i data-lucide="lock"></i> Edit
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Edit mode actions -->
+                <div class="edit-only" id="editActions">
+                    <button class="btn-secondary" onclick="cancelEdit()">
+                        <i data-lucide="x"></i> Cancel
+                    </button>
+                    <button class="btn-primary" style="margin-left: 8px;" onclick="saveChanges()">
+                        <i data-lucide="save"></i> Save Changes
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Edit Mode Banner ──────────────────────────────────── -->
+        <div id="editModeBar">
+            <p><strong>Editing mode active.</strong> Make your changes below and click Save Changes when done.</p>
+        </div>
+
+        <!-- ── Main Page Content (populated by JS) ──────────────── -->
+        <div id="pageContent">
+            <div class="state-wrapper">
+                <i data-lucide="loader-circle"></i>
+                <p>Loading network device details…</p>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- ── Toast Notification ─────────────────────────────────── -->
+    <div id="toast"></div>
+
+    <script src="../script/networkDevicesItem.js"></script>
+    <script src="../script/sidebar.js" defer></script>
+    <script>
+        // Render lucide icons that are already in the static HTML
+        // (the dynamic ones are rendered by networkDevicesItem.js after fetch)
+        document.addEventListener("DOMContentLoaded", () => {
+            if (typeof lucide !== "undefined") lucide.createIcons();
+        });
+    </script>
+
+</body>
+</html>

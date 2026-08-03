@@ -1,0 +1,3051 @@
+paths:
+  /audit/system:
+    get:
+      tags:
+        - Audit Logs
+      summary: Retrieve the system-level (non-asset) audit trail, optionally filtered by interaction type
+      description: >
+        Returns audit trail entries for interactions that are not tied to a specific
+        asset record (target_table is null) - authentication events, end user
+        management, purchase request management, report generation, and file
+        maintenance actions on reference data (Category, Vendor, Department,
+        Peripheral, and Program).
+
+
+        Covered interaction types: "Login", "Change Password",
+        "Add Department", "Update Department", "Add Peripheral",
+        "Update Peripheral", "Add Program", "Update Program", "Add Vendor",
+        "Update Vendor", "Add Category", "Update Category Status",
+        "Download Computer Report", "Download Software Report",
+        "Download UPS Report", "Download Printer Report",
+        "Download Network Device Report", "Download End User Report".
+
+
+        NOTE: End user interactions ("Add End User", "Update End User") are
+        NOT covered here, despite end users not being an "asset" in the
+        traditional sense - they are logged with target_table = "end_user"
+        so their audit trail can carry an entity_name (the affected end
+        user's name) and field-level Old Value/New Value rows, the same way
+        every other asset type does. This includes end users created via
+        POST /end-user AND end users silently auto-registered through asset
+        assignment (e.g. assigning a computer to an employee ID with no
+        existing end_user record) - both paths log identically under
+        "Add End User". Use GET /audit/end-user for those instead.
+
+
+        NOTE: Purchase request interactions ("Add Purchase Request",
+        "Update Purchase Request", "Add/Update/Delete Purchase Request Item")
+        are NOT covered here despite being non-asset in a business sense -
+        they are logged with target_table = "purchase_request" so their
+        audit trail can carry an entity_name (PR number and, for item-level
+        events, the item description). Use GET /audit/purchase-request for
+        those instead.
+
+
+        NOTE: System user interactions ("Add System User", "Update System
+        User", "Grant Permission", "Revoke Permission") are also NOT covered
+        here, for the same reason - they are logged with target_table =
+        "user" so their audit trail can carry an entity_name (the affected
+        system user's name) and, where applicable, field-level Old
+        Value/New Value rows. Use GET /audit/user for those instead.
+
+
+        Each entry in the response is a single flattened row rather than a raw
+        database record. Because these interactions carry no before/after
+        snapshot, the field, old_value, and new_value properties are always
+        null and entity_name is always null - the full context of what changed
+        is carried in interaction_detail instead.
+
+
+        Filtering by Type: The optional "type" query parameter accepts one or
+        more interaction type values from the list above. Repeat the parameter
+        for each value you want to include, for example "?type=Login&type=Register".
+        The filter is case-sensitive and must match the exact string stored in
+        the interaction_type column. Values with spaces are supported -
+        URL-encode them as %20 (e.g., "?type=Add%20Vendor"). When "type" is
+        omitted entirely, all system-level logs are returned without filtering.
+        If "type" is supplied but all provided values are empty or
+        whitespace-only, the request is rejected with 400 Bad Request.
+
+
+        Required Permission: IT Manager or IT Supervisor role.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: type
+          in: query
+          required: false
+          description: >
+            Filter the system audit trail by one or more interaction type
+            values. Repeat this parameter for each type you want to include.
+            The value is matched case-sensitively against the interaction_type
+            column, so casing must be exact (e.g., "Add Vendor", not
+            "add vendor"). Values containing spaces must be URL-encoded
+            (e.g., "Add%20Vendor"). If this parameter is provided, only
+            log entries whose interaction_type exactly matches one of the
+            supplied values are returned. Omit the parameter entirely to
+            retrieve every system-level interaction type.
+          schema:
+            type: array
+            items:
+              type: string
+            example:
+              - Login
+              - Add Vendor
+          style: form
+          explode: true
+      responses:
+        "200":
+          description: >
+            System audit trail retrieved successfully. Returns a flattened JSON
+            array of BizBox-style audit rows, ordered newest interaction first.
+            Every row has field, old_value, new_value, and entity_name set to
+            null, since system-level interactions carry no asset snapshot. If
+            no logs match the given filter (or the underlying data set is
+            empty when no filter is applied), returns a structured response
+            with an empty data array and an informational message.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: array
+                    items:
+                      $ref: "#/components/schemas/AuditTrailEntry"
+                  - $ref: "#/components/schemas/EmptyAuditLogResponse"
+              examples:
+                no_filter:
+                  summary: No type filter - all system-level logs returned
+                  description: >
+                    Request sent without any type query parameter. All
+                    system-level audit rows are returned, sorted newest-first.
+                    entity_name, field, old_value, and new_value are null on
+                    every row.
+                  value:
+                    - audit_log_id: 8
+                      entity_name: null
+                      interaction_date: "2025-06-08T14:10:00.000Z"
+                      interaction_type: Add Vendor
+                      user_name: Juan Dela Cruz
+                      field: null
+                      old_value: null
+                      new_value: null
+                      interaction_detail: Added vendor "HP Development Company, L.P.".
+                    - audit_log_id: 7
+                      entity_name: null
+                      interaction_date: "2025-06-08T13:45:00.000Z"
+                      interaction_type: Change Password
+                      user_name: Juan Dela Cruz
+                      field: null
+                      old_value: null
+                      new_value: null
+                      interaction_detail: Juan Dela Cruz changed their password.
+                    - audit_log_id: 6
+                      entity_name: null
+                      interaction_date: "2025-06-08T13:00:00.000Z"
+                      interaction_type: Download Computer Report
+                      user_name: Maria Santos
+                      field: null
+                      old_value: null
+                      new_value: null
+                      interaction_detail: Downloaded computer report with 8 selected columns.
+                    - audit_log_id: 1
+                      entity_name: null
+                      interaction_date: "2025-06-08T09:15:00.000Z"
+                      interaction_type: Login
+                      user_name: Juan Dela Cruz
+                      field: null
+                      old_value: null
+                      new_value: null
+                      interaction_detail: 10001 logged in.
+                single_type_filter:
+                  summary: Single type filter - ?type=Login
+                  description: >
+                    Request sent with a single type value. Only log entries
+                    whose interaction_type exactly matches "Login" are returned.
+                  value:
+                    - audit_log_id: 1
+                      entity_name: null
+                      interaction_date: "2025-06-08T09:15:00.000Z"
+                      interaction_type: Login
+                      user_name: Juan Dela Cruz
+                      field: null
+                      old_value: null
+                      new_value: null
+                      interaction_detail: 10001 logged in.
+                multiple_type_filter:
+                  summary: Multiple type filters - ?type=Add Vendor&type=Add Category
+                  description: >
+                    Request sent with two type values using repeated query
+                    parameters. Only log entries whose interaction_type is
+                    either "Add Vendor" or "Add Category" are returned,
+                    sorted newest-first.
+                  value:
+                    - audit_log_id: 5
+                      entity_name: null
+                      interaction_date: "2025-06-08T12:30:00.000Z"
+                      interaction_type: Add Category
+                      user_name: Maria Santos
+                      field: null
+                      old_value: null
+                      new_value: null
+                      interaction_detail: Added category value "Laptop" under group computer.device_type.
+                    - audit_log_id: 2
+                      entity_name: null
+                      interaction_date: "2025-06-08T10:00:00.000Z"
+                      interaction_type: Add Vendor
+                      user_name: Juan Dela Cruz
+                      field: null
+                      old_value: null
+                      new_value: null
+                      interaction_detail: Added vendor "Dell Technologies Inc.".
+                no_matching_logs:
+                  summary: Valid filter but no matching records
+                  description: >
+                    The request was fully authorized and the type filter was
+                    valid, but no audit log entries matched the specified
+                    interaction_type value(s). Also returned when there are no
+                    system-level logs at all and no filter is applied.
+                  value:
+                    message: No audit logs found
+                    data: []
+        "400":
+          description: >
+            Bad Request - The type query parameter was provided but resolved
+            to no usable values after trimming - for example, "?type=" or
+            "?type=%20". This response is only returned when type is
+            explicitly supplied and empty; omitting the parameter entirely is
+            valid and returns all system-level logs.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                empty_type:
+                  summary: The type parameter is blank or whitespace-only
+                  description: >
+                    The type parameter was included in the query string but
+                    the value was empty or contained only whitespace. At least
+                    one non-empty type value is required when the parameter is
+                    present.
+                  value:
+                    message: "Invalid query: 'type' must not be empty"
+        "401":
+          description: >
+            Unauthorized - The request did not include a valid Bearer token,
+            or the token has expired or is malformed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                no_token:
+                  summary: No token provided
+                  description: The Authorization header is missing or does not begin with "Bearer".
+                  value:
+                    message: "Unauthorized Access: No Token Provided"
+                invalid_token:
+                  summary: Token is invalid or expired
+                  description: The token was provided but failed JWT verification.
+                  value:
+                    message: "Unauthorized Access: Invalid Token"
+        "403":
+          description: >
+            Forbidden - The authenticated user does not have the IT Manager or
+            IT Supervisor role assigned to their account.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                insufficient_permissions:
+                  summary: User lacks the required role
+                  description: >
+                    The token was valid and the user is authenticated, but
+                    their role is not IT Manager or IT Supervisor.
+                  value:
+                    message: "Forbidden: Insufficient permissions"
+        "500":
+          description: >
+            Internal Server Error - An unexpected error occurred on the server
+            while attempting to retrieve the system audit trail, typically due
+            to a database connectivity or query failure.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                server_error:
+                  summary: Unexpected server-side failure
+                  value:
+                    message: Something went wrong
+
+  /audit/computer:
+    get:
+      tags:
+        - Audit Logs
+      summary: Retrieve the audit trail for all computer records
+      description: >
+        Returns audit trail entries for every interaction that has ever
+        targeted a computer record (target_table = "computer"),
+        across every computer in the system. Entries are ordered
+        newest interaction first.
+
+
+        Covered interaction types: "Add Computer", "Update Computer", "Assign Computer", "Unassign Computer", "Update Computer Network".
+
+
+        Each entry is a flattened BizBox-style row. Creation events
+        ("Add Computer") produce a single row per interaction with
+        field, old_value, and new_value set to null, since there is no prior
+        state to compare against - refer to interaction_detail for what was
+        added. All other interaction types produce one row per individual
+        field that changed between the before and after snapshot; an
+        interaction that changed multiple fields will appear as multiple
+        rows sharing the same audit_log_id, interaction_date, and
+        interaction_type.
+
+
+        entity_name is resolved from the computer_name value captured in
+        the snapshot at the time of the interaction, not from a
+        live lookup - so the name shown reflects what it was called at that
+        point in time, even if it was later renamed.
+
+
+        To retrieve the trail for one specific computer only, use
+        GET /audit/computer/:id.
+
+
+        Required Permission: IT Manager or IT Supervisor role.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: >
+            Audit trail retrieved successfully. Returns a flattened JSON array
+            of BizBox-style audit rows across every computer
+            record, ordered newest-first. If no computer
+            interactions have ever been logged, returns a structured response
+            with an empty data array and an informational message.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: array
+                    items:
+                      $ref: "#/components/schemas/AuditTrailEntry"
+                  - $ref: "#/components/schemas/EmptyAuditLogResponse"
+              examples:
+                with_history:
+                  summary: Computer audit trail with multiple interactions
+                  description: >
+                    Several computer interactions have been logged
+                    across the system, including a multi-field update that
+                    produced two separate rows sharing the same audit_log_id.
+                  value:
+                    - audit_log_id: 9
+                      entity_name: DESKTOP-IT-012
+                      interaction_date: "2025-06-08T15:00:00.000Z"
+                      interaction_type: Update Computer
+                      user_name: Juan Dela Cruz
+                      field: Computer Status
+                      old_value: Spare
+                      new_value: Active
+                      interaction_detail: Updated details of DESKTOP-IT-012.
+                    - audit_log_id: 9
+                      entity_name: DESKTOP-IT-012
+                      interaction_date: "2025-06-08T15:00:00.000Z"
+                      interaction_type: Update Computer
+                      user_name: Juan Dela Cruz
+                      field: IP Address
+                      old_value: 192.168.1.45
+                      new_value: 192.168.1.60
+                      interaction_detail: Updated details of DESKTOP-IT-012.
+                    - audit_log_id: 3
+                      entity_name: DESKTOP-IT-012
+                      interaction_date: "2025-06-08T10:30:00.000Z"
+                      interaction_type: Assign Computer
+                      user_name: Maria Santos
+                      field: Assigned User
+                      old_value: null
+                      new_value: "20045"
+                      interaction_detail: "Assigned an end user for DESKTOP-IT-012. Employee ID: 20045."
+                    - audit_log_id: 2
+                      entity_name: DESKTOP-IT-012
+                      interaction_date: "2025-06-08T09:00:00.000Z"
+                      interaction_type: Add Computer
+                      user_name: Juan Dela Cruz
+                      field: null
+                      old_value: null
+                      new_value: null
+                      interaction_detail: "Added Computer. Computer name: DESKTOP-IT-012 Serial No: SN-2024-0012."
+                no_history:
+                  summary: No computer interactions logged
+                  description: >
+                    No audit log entries exist yet for any computer
+                    record.
+                  value:
+                    message: No audit logs found
+                    data: []
+        "401":
+          description: >
+            Unauthorized - The request did not include a valid Bearer token,
+            or the token has expired or is malformed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                no_token:
+                  summary: No token provided
+                  value:
+                    message: "Unauthorized Access: No Token Provided"
+                invalid_token:
+                  summary: Token is invalid or expired
+                  value:
+                    message: "Unauthorized Access: Invalid Token"
+        "403":
+          description: >
+            Forbidden - The authenticated user does not have the IT Manager or
+            IT Supervisor role assigned to their account.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                insufficient_permissions:
+                  summary: User lacks the required role
+                  value:
+                    message: "Forbidden: Insufficient permissions"
+        "500":
+          description: >
+            Internal Server Error - An unexpected error occurred on the server
+            while attempting to retrieve the computer audit trail,
+            typically due to a database connectivity or query failure.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                server_error:
+                  summary: Unexpected server-side failure
+                  value:
+                    message: Something went wrong
+
+  "/audit/computer/:id":
+    get:
+      tags:
+        - Audit Logs
+      summary: Retrieve the full audit history for one specific computer
+      description: >
+        Returns all audit trail entries that reference a single
+        computer record, identified by the given computer_id
+        and matched via the target_table and target_id columns. Entries are
+        ordered newest interaction first.
+
+
+        This covers every tracked interaction that has ever targeted this
+        specific computer, including its creation
+        ("Add Computer") and every subsequent edit
+        ("Update Computer", "Assign Computer", "Unassign Computer", "Update Computer Network").
+
+
+        Each entry is a flattened BizBox-style row. Creation events produce a
+        single row with field, old_value, and new_value set to null. All
+        other interaction types produce one row per individual field that
+        changed - an interaction that changed multiple fields will appear as
+        multiple rows sharing the same audit_log_id.
+
+
+        Required Permission: IT Manager or IT Supervisor role.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: >
+            The computer_id (primary key of the computer table) of the
+            computer whose audit history is to be retrieved. Must
+            be a positive integer.
+          schema:
+            type: integer
+            example: 12
+      responses:
+        "200":
+          description: >
+            Audit history retrieved successfully. Returns a flattened JSON
+            array of BizBox-style audit rows for the specified
+            computer, ordered newest-first. If no entries exist
+            for the given computer_id (e.g., the record was added before
+            audit logging was in place, or the ID does not correspond to any
+            tracked record), returns a structured response with an empty data
+            array and an informational message.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: array
+                    items:
+                      $ref: "#/components/schemas/AuditTrailEntry"
+                  - $ref: "#/components/schemas/EmptyAssetAuditLogResponse"
+              examples:
+                single_record_history:
+                  summary: Computer has audit trail entries
+                  description: >
+                    The computer with ID 12 was
+                    added, then later had a single field updated.
+                  value:
+                    - audit_log_id: 3
+                      entity_name: DESKTOP-IT-012
+                      interaction_date: "2025-06-08T10:30:00.000Z"
+                      interaction_type: Assign Computer
+                      user_name: Maria Santos
+                      field: Assigned User
+                      old_value: null
+                      new_value: "20045"
+                      interaction_detail: "Assigned an end user for DESKTOP-IT-012. Employee ID: 20045."
+                    - audit_log_id: 2
+                      entity_name: DESKTOP-IT-012
+                      interaction_date: "2025-06-08T09:00:00.000Z"
+                      interaction_type: Add Computer
+                      user_name: Juan Dela Cruz
+                      field: null
+                      old_value: null
+                      new_value: null
+                      interaction_detail: "Added Computer. Computer name: DESKTOP-IT-012 Serial No: SN-2024-0012."
+                no_history:
+                  summary: No audit trail entries found for this computer
+                  description: >
+                    The computer_id is valid but no audit log entries
+                    reference it. This can occur for records that existed
+                    before audit logging was introduced.
+                  value:
+                    message: No audit logs found for this asset
+                    data: []
+        "400":
+          description: >
+            Bad Request - The provided id path parameter is missing or is not
+            a valid positive integer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                missing_id:
+                  summary: The computer ID is zero or not a valid integer
+                  value:
+                    message: Missing asset ID
+        "401":
+          description: >
+            Unauthorized - The request did not include a valid Bearer token,
+            or the token has expired or is malformed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                no_token:
+                  summary: No token provided
+                  value:
+                    message: "Unauthorized Access: No Token Provided"
+                invalid_token:
+                  summary: Token is invalid or expired
+                  value:
+                    message: "Unauthorized Access: Invalid Token"
+        "403":
+          description: >
+            Forbidden - The authenticated user does not have the IT Manager or
+            IT Supervisor role assigned to their account.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                insufficient_permissions:
+                  summary: User lacks the required role
+                  value:
+                    message: "Forbidden: Insufficient permissions"
+        "500":
+          description: >
+            Internal Server Error - An unexpected error occurred on the server
+            while attempting to retrieve the computer audit
+            history, typically due to a database connectivity or query
+            failure.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                server_error:
+                  summary: Unexpected server-side failure
+                  value:
+                    message: Something went wrong
+
+  /audit/software:
+    get:
+      tags:
+        - Audit Logs
+      summary: Retrieve the audit trail for all software records
+      description: >
+        Returns audit trail entries for every interaction that has ever
+        targeted a software record (target_table = "software"),
+        across every software in the system. Entries are ordered
+        newest interaction first.
+
+
+        Covered interaction types: "Add Software", "Update Software", "Assign Software", "Unassign Software".
+
+
+        Each entry is a flattened BizBox-style row. Creation events
+        ("Add Software") produce a single row per interaction with
+        field, old_value, and new_value set to null, since there is no prior
+        state to compare against - refer to interaction_detail for what was
+        added. All other interaction types produce one row per individual
+        field that changed between the before and after snapshot; an
+        interaction that changed multiple fields will appear as multiple
+        rows sharing the same audit_log_id, interaction_date, and
+        interaction_type.
+
+
+        entity_name is resolved from the software_name value captured in
+        the snapshot at the time of the interaction, not from a
+        live lookup - so the name shown reflects what it was called at that
+        point in time, even if it was later renamed.
+
+
+        To retrieve the trail for one specific software only, use
+        GET /audit/software/:id.
+
+
+        Required Permission: IT Manager or IT Supervisor role.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: >
+            Audit trail retrieved successfully. Returns a flattened JSON array
+            of BizBox-style audit rows across every software
+            record, ordered newest-first. If no software
+            interactions have ever been logged, returns a structured response
+            with an empty data array and an informational message.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: array
+                    items:
+                      $ref: "#/components/schemas/AuditTrailEntry"
+                  - $ref: "#/components/schemas/EmptyAuditLogResponse"
+              examples:
+                with_history:
+                  summary: Software audit trail with multiple interactions
+                  description: >
+                    Several software interactions have been logged
+                    across the system, including a multi-field update that
+                    produced two separate rows sharing the same audit_log_id.
+                  value:
+                    - audit_log_id: 11
+                      entity_name: Microsoft Office 365
+                      interaction_date: "2025-06-08T16:00:00.000Z"
+                      interaction_type: Update Software
+                      user_name: Juan Dela Cruz
+                      field: Expiry Date
+                      old_value: "2025-08-01"
+                      new_value: "2026-08-01"
+                      interaction_detail: Updated details of Microsoft Office 365.
+                    - audit_log_id: 11
+                      entity_name: Microsoft Office 365
+                      interaction_date: "2025-06-08T16:00:00.000Z"
+                      interaction_type: Update Software
+                      user_name: Juan Dela Cruz
+                      field: Cost
+                      old_value: "5000.00"
+                      new_value: "5500.00"
+                      interaction_detail: Updated details of Microsoft Office 365.
+                    - audit_log_id: 6
+                      entity_name: Microsoft Office 365
+                      interaction_date: "2025-06-08T12:00:00.000Z"
+                      interaction_type: Assign Software
+                      user_name: Maria Santos
+                      field: Assigned User
+                      old_value: null
+                      new_value: "20045"
+                      interaction_detail: Assigned Microsoft Office 365 to end user emp ID:20045.
+                    - audit_log_id: 5
+                      entity_name: Microsoft Office 365
+                      interaction_date: "2025-06-08T09:30:00.000Z"
+                      interaction_type: Add Software
+                      user_name: Juan Dela Cruz
+                      field: null
+                      old_value: null
+                      new_value: null
+                      interaction_detail: Added software Microsoft Office 365.
+                no_history:
+                  summary: No software interactions logged
+                  description: >
+                    No audit log entries exist yet for any software
+                    record.
+                  value:
+                    message: No audit logs found
+                    data: []
+        "401":
+          description: >
+            Unauthorized - The request did not include a valid Bearer token,
+            or the token has expired or is malformed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                no_token:
+                  summary: No token provided
+                  value:
+                    message: "Unauthorized Access: No Token Provided"
+                invalid_token:
+                  summary: Token is invalid or expired
+                  value:
+                    message: "Unauthorized Access: Invalid Token"
+        "403":
+          description: >
+            Forbidden - The authenticated user does not have the IT Manager or
+            IT Supervisor role assigned to their account.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                insufficient_permissions:
+                  summary: User lacks the required role
+                  value:
+                    message: "Forbidden: Insufficient permissions"
+        "500":
+          description: >
+            Internal Server Error - An unexpected error occurred on the server
+            while attempting to retrieve the software audit trail,
+            typically due to a database connectivity or query failure.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                server_error:
+                  summary: Unexpected server-side failure
+                  value:
+                    message: Something went wrong
+
+  "/audit/software/:id":
+    get:
+      tags:
+        - Audit Logs
+      summary: Retrieve the full audit history for one specific software
+      description: >
+        Returns all audit trail entries that reference a single
+        software record, identified by the given software_id
+        and matched via the target_table and target_id columns. Entries are
+        ordered newest interaction first.
+
+
+        This covers every tracked interaction that has ever targeted this
+        specific software, including its creation
+        ("Add Software") and every subsequent edit
+        ("Update Software", "Assign Software", "Unassign Software").
+
+
+        Each entry is a flattened BizBox-style row. Creation events produce a
+        single row with field, old_value, and new_value set to null. All
+        other interaction types produce one row per individual field that
+        changed - an interaction that changed multiple fields will appear as
+        multiple rows sharing the same audit_log_id.
+
+
+        Required Permission: IT Manager or IT Supervisor role.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: >
+            The software_id (primary key of the software table) of the
+            software whose audit history is to be retrieved. Must
+            be a positive integer.
+          schema:
+            type: integer
+            example: 7
+      responses:
+        "200":
+          description: >
+            Audit history retrieved successfully. Returns a flattened JSON
+            array of BizBox-style audit rows for the specified
+            software, ordered newest-first. If no entries exist
+            for the given software_id (e.g., the record was added before
+            audit logging was in place, or the ID does not correspond to any
+            tracked record), returns a structured response with an empty data
+            array and an informational message.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: array
+                    items:
+                      $ref: "#/components/schemas/AuditTrailEntry"
+                  - $ref: "#/components/schemas/EmptyAssetAuditLogResponse"
+              examples:
+                single_record_history:
+                  summary: Software has audit trail entries
+                  description: >
+                    The software with ID 7 was
+                    added, then later had a single field updated.
+                  value:
+                    - audit_log_id: 6
+                      entity_name: Microsoft Office 365
+                      interaction_date: "2025-06-08T12:00:00.000Z"
+                      interaction_type: Assign Software
+                      user_name: Maria Santos
+                      field: Assigned User
+                      old_value: null
+                      new_value: "20045"
+                      interaction_detail: Assigned Microsoft Office 365 to end user emp ID:20045.
+                    - audit_log_id: 5
+                      entity_name: Microsoft Office 365
+                      interaction_date: "2025-06-08T09:30:00.000Z"
+                      interaction_type: Add Software
+                      user_name: Juan Dela Cruz
+                      field: null
+                      old_value: null
+                      new_value: null
+                      interaction_detail: Added software Microsoft Office 365.
+                no_history:
+                  summary: No audit trail entries found for this software
+                  description: >
+                    The software_id is valid but no audit log entries
+                    reference it. This can occur for records that existed
+                    before audit logging was introduced.
+                  value:
+                    message: No audit logs found for this asset
+                    data: []
+        "400":
+          description: >
+            Bad Request - The provided id path parameter is missing or is not
+            a valid positive integer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                missing_id:
+                  summary: The software ID is zero or not a valid integer
+                  value:
+                    message: Missing asset ID
+        "401":
+          description: >
+            Unauthorized - The request did not include a valid Bearer token,
+            or the token has expired or is malformed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                no_token:
+                  summary: No token provided
+                  value:
+                    message: "Unauthorized Access: No Token Provided"
+                invalid_token:
+                  summary: Token is invalid or expired
+                  value:
+                    message: "Unauthorized Access: Invalid Token"
+        "403":
+          description: >
+            Forbidden - The authenticated user does not have the IT Manager or
+            IT Supervisor role assigned to their account.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                insufficient_permissions:
+                  summary: User lacks the required role
+                  value:
+                    message: "Forbidden: Insufficient permissions"
+        "500":
+          description: >
+            Internal Server Error - An unexpected error occurred on the server
+            while attempting to retrieve the software audit
+            history, typically due to a database connectivity or query
+            failure.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                server_error:
+                  summary: Unexpected server-side failure
+                  value:
+                    message: Something went wrong
+
+  /audit/printer:
+    get:
+      tags:
+        - Audit Logs
+      summary: Retrieve the audit trail for all printer records
+      description: >
+        Returns audit trail entries for every interaction that has ever
+        targeted a printer record (target_table = "printer"),
+        across every printer in the system. Entries are ordered
+        newest interaction first.
+
+
+        Covered interaction types: "Add Printer", "Update Printer", "Update Printer Network".
+
+
+        Each entry is a flattened BizBox-style row. Creation events
+        ("Add Printer") produce a single row per interaction with
+        field, old_value, and new_value set to null, since there is no prior
+        state to compare against - refer to interaction_detail for what was
+        added. All other interaction types produce one row per individual
+        field that changed between the before and after snapshot; an
+        interaction that changed multiple fields will appear as multiple
+        rows sharing the same audit_log_id, interaction_date, and
+        interaction_type.
+
+
+        entity_name is resolved from the printer_name value captured in
+        the snapshot at the time of the interaction, not from a
+        live lookup - so the name shown reflects what it was called at that
+        point in time, even if it was later renamed.
+
+
+        To retrieve the trail for one specific printer only, use
+        GET /audit/printer/:id.
+
+
+        Required Permission: IT Manager or IT Supervisor role.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: >
+            Audit trail retrieved successfully. Returns a flattened JSON array
+            of BizBox-style audit rows across every printer
+            record, ordered newest-first. If no printer
+            interactions have ever been logged, returns a structured response
+            with an empty data array and an informational message.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: array
+                    items:
+                      $ref: "#/components/schemas/AuditTrailEntry"
+                  - $ref: "#/components/schemas/EmptyAuditLogResponse"
+              examples:
+                with_history:
+                  summary: Printer audit trail with multiple interactions
+                  description: >
+                    Several printer interactions have been logged
+                    across the system, including a multi-field update that
+                    produced two separate rows sharing the same audit_log_id.
+                  value:
+                    - audit_log_id: 14
+                      entity_name: HP-LaserJet-Radiology
+                      interaction_date: "2025-06-08T17:00:00.000Z"
+                      interaction_type: Update Printer Network
+                      user_name: Juan Dela Cruz
+                      field: IP Address
+                      old_value: 192.168.2.20
+                      new_value: 192.168.2.25
+                      interaction_detail: Updated network details of HP-LaserJet-Radiology.
+                    - audit_log_id: 10
+                      entity_name: HP-LaserJet-Radiology
+                      interaction_date: "2025-06-08T11:00:00.000Z"
+                      interaction_type: Update Printer
+                      user_name: Maria Santos
+                      field: Asset Status
+                      old_value: Spare
+                      new_value: Active
+                      interaction_detail: Updated details of HP-LaserJet-Radiology.
+                    - audit_log_id: 4
+                      entity_name: HP-LaserJet-Radiology
+                      interaction_date: "2025-06-08T08:45:00.000Z"
+                      interaction_type: Add Printer
+                      user_name: Juan Dela Cruz
+                      field: null
+                      old_value: null
+                      new_value: null
+                      interaction_detail: Added printer HP-LaserJet-Radiology.
+                no_history:
+                  summary: No printer interactions logged
+                  description: >
+                    No audit log entries exist yet for any printer
+                    record.
+                  value:
+                    message: No audit logs found
+                    data: []
+        "401":
+          description: >
+            Unauthorized - The request did not include a valid Bearer token,
+            or the token has expired or is malformed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                no_token:
+                  summary: No token provided
+                  value:
+                    message: "Unauthorized Access: No Token Provided"
+                invalid_token:
+                  summary: Token is invalid or expired
+                  value:
+                    message: "Unauthorized Access: Invalid Token"
+        "403":
+          description: >
+            Forbidden - The authenticated user does not have the IT Manager or
+            IT Supervisor role assigned to their account.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                insufficient_permissions:
+                  summary: User lacks the required role
+                  value:
+                    message: "Forbidden: Insufficient permissions"
+        "500":
+          description: >
+            Internal Server Error - An unexpected error occurred on the server
+            while attempting to retrieve the printer audit trail,
+            typically due to a database connectivity or query failure.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                server_error:
+                  summary: Unexpected server-side failure
+                  value:
+                    message: Something went wrong
+
+  "/audit/printer/:id":
+    get:
+      tags:
+        - Audit Logs
+      summary: Retrieve the full audit history for one specific printer
+      description: >
+        Returns all audit trail entries that reference a single
+        printer record, identified by the given printer_id
+        and matched via the target_table and target_id columns. Entries are
+        ordered newest interaction first.
+
+
+        This covers every tracked interaction that has ever targeted this
+        specific printer, including its creation
+        ("Add Printer") and every subsequent edit
+        ("Update Printer", "Update Printer Network").
+
+
+        Each entry is a flattened BizBox-style row. Creation events produce a
+        single row with field, old_value, and new_value set to null. All
+        other interaction types produce one row per individual field that
+        changed - an interaction that changed multiple fields will appear as
+        multiple rows sharing the same audit_log_id.
+
+
+        Required Permission: IT Manager or IT Supervisor role.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: >
+            The printer_id (primary key of the printer table) of the
+            printer whose audit history is to be retrieved. Must
+            be a positive integer.
+          schema:
+            type: integer
+            example: 4
+      responses:
+        "200":
+          description: >
+            Audit history retrieved successfully. Returns a flattened JSON
+            array of BizBox-style audit rows for the specified
+            printer, ordered newest-first. If no entries exist
+            for the given printer_id (e.g., the record was added before
+            audit logging was in place, or the ID does not correspond to any
+            tracked record), returns a structured response with an empty data
+            array and an informational message.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: array
+                    items:
+                      $ref: "#/components/schemas/AuditTrailEntry"
+                  - $ref: "#/components/schemas/EmptyAssetAuditLogResponse"
+              examples:
+                single_record_history:
+                  summary: Printer has audit trail entries
+                  description: >
+                    The printer with ID 4 was
+                    added, then later had a single field updated.
+                  value:
+                    - audit_log_id: 4
+                      entity_name: HP-LaserJet-Radiology
+                      interaction_date: "2025-06-08T08:45:00.000Z"
+                      interaction_type: Add Printer
+                      user_name: Juan Dela Cruz
+                      field: null
+                      old_value: null
+                      new_value: null
+                      interaction_detail: Added printer HP-LaserJet-Radiology.
+                    - audit_log_id: 4
+                      entity_name: HP-LaserJet-Radiology
+                      interaction_date: "2025-06-08T08:45:00.000Z"
+                      interaction_type: Add Printer
+                      user_name: Juan Dela Cruz
+                      field: null
+                      old_value: null
+                      new_value: null
+                      interaction_detail: Added printer HP-LaserJet-Radiology.
+                no_history:
+                  summary: No audit trail entries found for this printer
+                  description: >
+                    The printer_id is valid but no audit log entries
+                    reference it. This can occur for records that existed
+                    before audit logging was introduced.
+                  value:
+                    message: No audit logs found for this asset
+                    data: []
+        "400":
+          description: >
+            Bad Request - The provided id path parameter is missing or is not
+            a valid positive integer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                missing_id:
+                  summary: The printer ID is zero or not a valid integer
+                  value:
+                    message: Missing asset ID
+        "401":
+          description: >
+            Unauthorized - The request did not include a valid Bearer token,
+            or the token has expired or is malformed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                no_token:
+                  summary: No token provided
+                  value:
+                    message: "Unauthorized Access: No Token Provided"
+                invalid_token:
+                  summary: Token is invalid or expired
+                  value:
+                    message: "Unauthorized Access: Invalid Token"
+        "403":
+          description: >
+            Forbidden - The authenticated user does not have the IT Manager or
+            IT Supervisor role assigned to their account.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                insufficient_permissions:
+                  summary: User lacks the required role
+                  value:
+                    message: "Forbidden: Insufficient permissions"
+        "500":
+          description: >
+            Internal Server Error - An unexpected error occurred on the server
+            while attempting to retrieve the printer audit
+            history, typically due to a database connectivity or query
+            failure.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                server_error:
+                  summary: Unexpected server-side failure
+                  value:
+                    message: Something went wrong
+
+  /audit/ups:
+    get:
+      tags:
+        - Audit Logs
+      summary: Retrieve the audit trail for all ups records
+      description: >
+        Returns audit trail entries for every interaction that has ever
+        targeted a ups record (target_table = "ups"),
+        across every ups in the system. Entries are ordered
+        newest interaction first.
+
+
+        Covered interaction types: "Add UPS", "Update UPS".
+
+
+        Each entry is a flattened BizBox-style row. Creation events
+        ("Add UPS") produce a single row per interaction with
+        field, old_value, and new_value set to null, since there is no prior
+        state to compare against - refer to interaction_detail for what was
+        added. All other interaction types produce one row per individual
+        field that changed between the before and after snapshot; an
+        interaction that changed multiple fields will appear as multiple
+        rows sharing the same audit_log_id, interaction_date, and
+        interaction_type.
+
+
+        entity_name is resolved from the serial_no value captured in
+        the snapshot at the time of the interaction (UPS records have no dedicated name column, so serial_no is used as the display identifier), not from a
+        live lookup - so the name shown reflects what it was called at that
+        point in time, even if it was later renamed.
+
+
+        To retrieve the trail for one specific ups only, use
+        GET /audit/ups/:id.
+
+
+        Required Permission: IT Manager or IT Supervisor role.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: >
+            Audit trail retrieved successfully. Returns a flattened JSON array
+            of BizBox-style audit rows across every ups
+            record, ordered newest-first. If no ups
+            interactions have ever been logged, returns a structured response
+            with an empty data array and an informational message.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: array
+                    items:
+                      $ref: "#/components/schemas/AuditTrailEntry"
+                  - $ref: "#/components/schemas/EmptyAuditLogResponse"
+              examples:
+                with_history:
+                  summary: UPS audit trail with multiple interactions
+                  description: >
+                    Several ups interactions have been logged
+                    across the system, including a multi-field update that
+                    produced two separate rows sharing the same audit_log_id.
+                  value:
+                    - audit_log_id: 13
+                      entity_name: SN-UPS-2024-0003
+                      interaction_date: "2025-06-08T14:30:00.000Z"
+                      interaction_type: Update UPS
+                      user_name: Juan Dela Cruz
+                      field: Asset Status
+                      old_value: Active
+                      new_value: Repair
+                      interaction_detail: Updated details of UPS with serial no:SN-UPS-2024-0003.
+                    - audit_log_id: 13
+                      entity_name: SN-UPS-2024-0003
+                      interaction_date: "2025-06-08T14:30:00.000Z"
+                      interaction_type: Update UPS
+                      user_name: Juan Dela Cruz
+                      field: Battery Replace Date
+                      old_value: null
+                      new_value: "2025-06-08"
+                      interaction_detail: Updated details of UPS with serial no:SN-UPS-2024-0003.
+                    - audit_log_id: 8
+                      entity_name: SN-UPS-2024-0003
+                      interaction_date: "2025-06-08T09:50:00.000Z"
+                      interaction_type: Add UPS
+                      user_name: Maria Santos
+                      field: null
+                      old_value: null
+                      new_value: null
+                      interaction_detail: Added UPS with serial no:SN-UPS-2024-0003.
+                no_history:
+                  summary: No ups interactions logged
+                  description: >
+                    No audit log entries exist yet for any ups
+                    record.
+                  value:
+                    message: No audit logs found
+                    data: []
+        "401":
+          description: >
+            Unauthorized - The request did not include a valid Bearer token,
+            or the token has expired or is malformed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                no_token:
+                  summary: No token provided
+                  value:
+                    message: "Unauthorized Access: No Token Provided"
+                invalid_token:
+                  summary: Token is invalid or expired
+                  value:
+                    message: "Unauthorized Access: Invalid Token"
+        "403":
+          description: >
+            Forbidden - The authenticated user does not have the IT Manager or
+            IT Supervisor role assigned to their account.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                insufficient_permissions:
+                  summary: User lacks the required role
+                  value:
+                    message: "Forbidden: Insufficient permissions"
+        "500":
+          description: >
+            Internal Server Error - An unexpected error occurred on the server
+            while attempting to retrieve the ups audit trail,
+            typically due to a database connectivity or query failure.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                server_error:
+                  summary: Unexpected server-side failure
+                  value:
+                    message: Something went wrong
+
+  "/audit/ups/:id":
+    get:
+      tags:
+        - Audit Logs
+      summary: Retrieve the full audit history for one specific ups
+      description: >
+        Returns all audit trail entries that reference a single
+        ups record, identified by the given ups_id
+        and matched via the target_table and target_id columns. Entries are
+        ordered newest interaction first.
+
+
+        This covers every tracked interaction that has ever targeted this
+        specific ups, including its creation
+        ("Add UPS") and every subsequent edit
+        ("Update UPS").
+
+
+        Each entry is a flattened BizBox-style row. Creation events produce a
+        single row with field, old_value, and new_value set to null. All
+        other interaction types produce one row per individual field that
+        changed - an interaction that changed multiple fields will appear as
+        multiple rows sharing the same audit_log_id.
+
+
+        Required Permission: IT Manager or IT Supervisor role.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: >
+            The ups_id (primary key of the ups table) of the
+            ups whose audit history is to be retrieved. Must
+            be a positive integer.
+          schema:
+            type: integer
+            example: 3
+      responses:
+        "200":
+          description: >
+            Audit history retrieved successfully. Returns a flattened JSON
+            array of BizBox-style audit rows for the specified
+            ups, ordered newest-first. If no entries exist
+            for the given ups_id (e.g., the record was added before
+            audit logging was in place, or the ID does not correspond to any
+            tracked record), returns a structured response with an empty data
+            array and an informational message.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: array
+                    items:
+                      $ref: "#/components/schemas/AuditTrailEntry"
+                  - $ref: "#/components/schemas/EmptyAssetAuditLogResponse"
+              examples:
+                single_record_history:
+                  summary: UPS has audit trail entries
+                  description: >
+                    The ups with ID 3 was
+                    added, then later had a single field updated.
+                  value:
+                    - audit_log_id: 8
+                      entity_name: SN-UPS-2024-0003
+                      interaction_date: "2025-06-08T09:50:00.000Z"
+                      interaction_type: Add UPS
+                      user_name: Maria Santos
+                      field: null
+                      old_value: null
+                      new_value: null
+                      interaction_detail: Added UPS with serial no:SN-UPS-2024-0003.
+                    - audit_log_id: 8
+                      entity_name: SN-UPS-2024-0003
+                      interaction_date: "2025-06-08T09:50:00.000Z"
+                      interaction_type: Add UPS
+                      user_name: Maria Santos
+                      field: null
+                      old_value: null
+                      new_value: null
+                      interaction_detail: Added UPS with serial no:SN-UPS-2024-0003.
+                no_history:
+                  summary: No audit trail entries found for this ups
+                  description: >
+                    The ups_id is valid but no audit log entries
+                    reference it. This can occur for records that existed
+                    before audit logging was introduced.
+                  value:
+                    message: No audit logs found for this asset
+                    data: []
+        "400":
+          description: >
+            Bad Request - The provided id path parameter is missing or is not
+            a valid positive integer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                missing_id:
+                  summary: The ups ID is zero or not a valid integer
+                  value:
+                    message: Missing asset ID
+        "401":
+          description: >
+            Unauthorized - The request did not include a valid Bearer token,
+            or the token has expired or is malformed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                no_token:
+                  summary: No token provided
+                  value:
+                    message: "Unauthorized Access: No Token Provided"
+                invalid_token:
+                  summary: Token is invalid or expired
+                  value:
+                    message: "Unauthorized Access: Invalid Token"
+        "403":
+          description: >
+            Forbidden - The authenticated user does not have the IT Manager or
+            IT Supervisor role assigned to their account.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                insufficient_permissions:
+                  summary: User lacks the required role
+                  value:
+                    message: "Forbidden: Insufficient permissions"
+        "500":
+          description: >
+            Internal Server Error - An unexpected error occurred on the server
+            while attempting to retrieve the ups audit
+            history, typically due to a database connectivity or query
+            failure.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                server_error:
+                  summary: Unexpected server-side failure
+                  value:
+                    message: Something went wrong
+
+  /audit/network-device:
+    get:
+      tags:
+        - Audit Logs
+      summary: Retrieve the audit trail for all network device records
+      description: >
+        Returns audit trail entries for every interaction that has ever
+        targeted a network device record (target_table = "network_device"),
+        across every network device in the system. Entries are ordered
+        newest interaction first.
+
+
+        Covered interaction types: "Add Network Device", "Update Network Device".
+
+
+        Each entry is a flattened BizBox-style row. Creation events
+        ("Add Network Device") produce a single row per interaction with
+        field, old_value, and new_value set to null, since there is no prior
+        state to compare against - refer to interaction_detail for what was
+        added. All other interaction types produce one row per individual
+        field that changed between the before and after snapshot; an
+        interaction that changed multiple fields will appear as multiple
+        rows sharing the same audit_log_id, interaction_date, and
+        interaction_type.
+
+
+        entity_name is resolved from the network_device_name value captured in
+        the snapshot at the time of the interaction, not from a
+        live lookup - so the name shown reflects what it was called at that
+        point in time, even if it was later renamed.
+
+
+        To retrieve the trail for one specific network device only, use
+        GET /audit/network-device/:id.
+
+
+        Required Permission: IT Manager or IT Supervisor role.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: >
+            Audit trail retrieved successfully. Returns a flattened JSON array
+            of BizBox-style audit rows across every network device
+            record, ordered newest-first. If no network device
+            interactions have ever been logged, returns a structured response
+            with an empty data array and an informational message.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: array
+                    items:
+                      $ref: "#/components/schemas/AuditTrailEntry"
+                  - $ref: "#/components/schemas/EmptyAuditLogResponse"
+              examples:
+                with_history:
+                  summary: Network Device audit trail with multiple interactions
+                  description: >
+                    Several network device interactions have been logged
+                    across the system, including a multi-field update that
+                    produced two separate rows sharing the same audit_log_id.
+                  value:
+                    - audit_log_id: 16
+                      entity_name: SW-CORE-01
+                      interaction_date: "2025-06-08T18:00:00.000Z"
+                      interaction_type: Update Network Device
+                      user_name: Juan Dela Cruz
+                      field: Firmware Version
+                      old_value: v2.1.0
+                      new_value: v2.3.0
+                      interaction_detail: Updated details of SW-CORE-01.
+                    - audit_log_id: 16
+                      entity_name: SW-CORE-01
+                      interaction_date: "2025-06-08T18:00:00.000Z"
+                      interaction_type: Update Network Device
+                      user_name: Juan Dela Cruz
+                      field: Port Count
+                      old_value: "24"
+                      new_value: "48"
+                      interaction_detail: Updated details of SW-CORE-01.
+                    - audit_log_id: 9
+                      entity_name: SW-CORE-01
+                      interaction_date: "2025-06-08T09:10:00.000Z"
+                      interaction_type: Add Network Device
+                      user_name: Maria Santos
+                      field: null
+                      old_value: null
+                      new_value: null
+                      interaction_detail: Added network device SW-CORE-01.
+                no_history:
+                  summary: No network device interactions logged
+                  description: >
+                    No audit log entries exist yet for any network device
+                    record.
+                  value:
+                    message: No audit logs found
+                    data: []
+        "401":
+          description: >
+            Unauthorized - The request did not include a valid Bearer token,
+            or the token has expired or is malformed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                no_token:
+                  summary: No token provided
+                  value:
+                    message: "Unauthorized Access: No Token Provided"
+                invalid_token:
+                  summary: Token is invalid or expired
+                  value:
+                    message: "Unauthorized Access: Invalid Token"
+        "403":
+          description: >
+            Forbidden - The authenticated user does not have the IT Manager or
+            IT Supervisor role assigned to their account.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                insufficient_permissions:
+                  summary: User lacks the required role
+                  value:
+                    message: "Forbidden: Insufficient permissions"
+        "500":
+          description: >
+            Internal Server Error - An unexpected error occurred on the server
+            while attempting to retrieve the network device audit trail,
+            typically due to a database connectivity or query failure.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                server_error:
+                  summary: Unexpected server-side failure
+                  value:
+                    message: Something went wrong
+
+  "/audit/network-device/:id":
+    get:
+      tags:
+        - Audit Logs
+      summary: Retrieve the full audit history for one specific network device
+      description: >
+        Returns all audit trail entries that reference a single
+        network device record, identified by the given network_device_id
+        and matched via the target_table and target_id columns. Entries are
+        ordered newest interaction first.
+
+
+        This covers every tracked interaction that has ever targeted this
+        specific network device, including its creation
+        ("Add Network Device") and every subsequent edit
+        ("Update Network Device").
+
+
+        Each entry is a flattened BizBox-style row. Creation events produce a
+        single row with field, old_value, and new_value set to null. All
+        other interaction types produce one row per individual field that
+        changed - an interaction that changed multiple fields will appear as
+        multiple rows sharing the same audit_log_id.
+
+
+        Required Permission: IT Manager or IT Supervisor role.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: >
+            The network_device_id (primary key of the network_device table) of the
+            network device whose audit history is to be retrieved. Must
+            be a positive integer.
+          schema:
+            type: integer
+            example: 6
+      responses:
+        "200":
+          description: >
+            Audit history retrieved successfully. Returns a flattened JSON
+            array of BizBox-style audit rows for the specified
+            network device, ordered newest-first. If no entries exist
+            for the given network_device_id (e.g., the record was added before
+            audit logging was in place, or the ID does not correspond to any
+            tracked record), returns a structured response with an empty data
+            array and an informational message.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: array
+                    items:
+                      $ref: "#/components/schemas/AuditTrailEntry"
+                  - $ref: "#/components/schemas/EmptyAssetAuditLogResponse"
+              examples:
+                single_record_history:
+                  summary: Network Device has audit trail entries
+                  description: >
+                    The network device with ID 6 was
+                    added, then later had a single field updated.
+                  value:
+                    - audit_log_id: 9
+                      entity_name: SW-CORE-01
+                      interaction_date: "2025-06-08T09:10:00.000Z"
+                      interaction_type: Add Network Device
+                      user_name: Maria Santos
+                      field: null
+                      old_value: null
+                      new_value: null
+                      interaction_detail: Added network device SW-CORE-01.
+                    - audit_log_id: 9
+                      entity_name: SW-CORE-01
+                      interaction_date: "2025-06-08T09:10:00.000Z"
+                      interaction_type: Add Network Device
+                      user_name: Maria Santos
+                      field: null
+                      old_value: null
+                      new_value: null
+                      interaction_detail: Added network device SW-CORE-01.
+                no_history:
+                  summary: No audit trail entries found for this network device
+                  description: >
+                    The network_device_id is valid but no audit log entries
+                    reference it. This can occur for records that existed
+                    before audit logging was introduced.
+                  value:
+                    message: No audit logs found for this asset
+                    data: []
+        "400":
+          description: >
+            Bad Request - The provided id path parameter is missing or is not
+            a valid positive integer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                missing_id:
+                  summary: The network device ID is zero or not a valid integer
+                  value:
+                    message: Missing asset ID
+        "401":
+          description: >
+            Unauthorized - The request did not include a valid Bearer token,
+            or the token has expired or is malformed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                no_token:
+                  summary: No token provided
+                  value:
+                    message: "Unauthorized Access: No Token Provided"
+                invalid_token:
+                  summary: Token is invalid or expired
+                  value:
+                    message: "Unauthorized Access: Invalid Token"
+        "403":
+          description: >
+            Forbidden - The authenticated user does not have the IT Manager or
+            IT Supervisor role assigned to their account.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                insufficient_permissions:
+                  summary: User lacks the required role
+                  value:
+                    message: "Forbidden: Insufficient permissions"
+        "500":
+          description: >
+            Internal Server Error - An unexpected error occurred on the server
+            while attempting to retrieve the network device audit
+            history, typically due to a database connectivity or query
+            failure.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                server_error:
+                  summary: Unexpected server-side failure
+                  value:
+                    message: Something went wrong
+
+  /audit/purchase-request:
+    get:
+      tags:
+        - Audit Logs
+      summary: Retrieve the audit trail for all purchase requests and their items
+      description: >
+        Returns audit trail entries for every interaction that has ever
+        targeted a purchase request (target_table = "purchase_request"),
+        across every purchase request in the system. Entries are ordered
+        newest interaction first.
+
+
+        Covered interaction types: "Add Purchase Request",
+        "Update Purchase Request", "Add Purchase Request Item",
+        "Update Purchase Request Item", "Delete Purchase Request Item".
+
+
+        This single endpoint covers BOTH header-level interactions (creating
+        or editing the purchase request itself - pr_status, requested_by,
+        received_by, date_received, remarks) AND item-level interactions
+        (adding, receiving, or deleting an individual line item). Item-level
+        events are logged against their parent purchase request's pr_id
+        rather than a separate target_table, so there is no per-item
+        endpoint - everything for a given PR, including all of its items'
+        history, is returned together here.
+
+
+        Each entry is a flattened BizBox-style row. "Add Purchase Request"
+        and "Add Purchase Request Item" are creation events: they produce
+        one row per populated field, with old_value null and new_value set
+        to the field's initial value. "Delete Purchase Request Item" is the
+        mirror case: it produces one row per field the item held
+        immediately before deletion, with new_value null. "Update Purchase
+        Request" and "Update Purchase Request Item" produce one row per
+        individual field that actually changed between the before and after
+        snapshot. An interaction that touched multiple fields will appear as
+        multiple rows sharing the same audit_log_id, interaction_date, and
+        interaction_type.
+
+
+        Note: marking a purchase request's pr_status as "Received" (either
+        directly, or automatically once its last outstanding item is marked
+        received) forces every one of its items to be considered received
+        as a side effect. That mass side effect on individual items is not
+        separately logged - only the purchase request's own pr_status field
+        change is recorded, since it already communicates that every item is
+        now settled.
+
+
+        entity_name is resolved from the pr_no captured in the snapshot at
+        the time of the interaction, not from a live lookup, formatted as
+        "PR-<pr_no>" for header-level rows. Item-level rows additionally
+        include the item's own description, formatted as
+        "PR-<pr_no> – <item description>", since a single purchase request
+        can have many items and pr_no alone would not identify which one was
+        affected.
+
+
+        Required Permission: IT Manager or IT Supervisor role.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: >
+            Audit trail retrieved successfully. Returns a flattened JSON
+            array of BizBox-style audit rows across every purchase request
+            and its items, ordered newest-first. If no purchase request
+            interactions have ever been logged, returns a structured
+            response with an empty data array and an informational message.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: array
+                    items:
+                      $ref: "#/components/schemas/AuditTrailEntry"
+                  - $ref: "#/components/schemas/EmptyAuditLogResponse"
+              examples:
+                with_history:
+                  summary: Purchase request audit trail with multiple interactions
+                  description: >
+                    Several purchase request interactions have been logged,
+                    including a deleted item (multiple rows, one per field,
+                    all with new_value null), an auto-completed PR header
+                    (multiple rows sharing one audit_log_id), a single item
+                    marked as received, an item added after creation, and
+                    the original PR creation (multiple rows, one per
+                    populated field).
+                  value:
+                    - audit_log_id: 14
+                      entity_name: "PR-202500045 – Office Chair"
+                      interaction_date: "2025-06-09T11:20:00.000Z"
+                      interaction_type: Delete Purchase Request Item
+                      user_name: Juan Dela Cruz
+                      field: Item Description
+                      old_value: Office Chair
+                      new_value: null
+                      interaction_detail: "Deleted item from PR No: 202500045. Item: Office Chair."
+                    - audit_log_id: 14
+                      entity_name: "PR-202500045 – Office Chair"
+                      interaction_date: "2025-06-09T11:20:00.000Z"
+                      interaction_type: Delete Purchase Request Item
+                      user_name: Juan Dela Cruz
+                      field: Item Quantity
+                      old_value: "2"
+                      new_value: null
+                      interaction_detail: "Deleted item from PR No: 202500045. Item: Office Chair."
+                    - audit_log_id: 14
+                      entity_name: "PR-202500045 – Office Chair"
+                      interaction_date: "2025-06-09T11:20:00.000Z"
+                      interaction_type: Delete Purchase Request Item
+                      user_name: Juan Dela Cruz
+                      field: Unit Price
+                      old_value: "3500.00"
+                      new_value: null
+                      interaction_detail: "Deleted item from PR No: 202500045. Item: Office Chair."
+                    - audit_log_id: 14
+                      entity_name: "PR-202500045 – Office Chair"
+                      interaction_date: "2025-06-09T11:20:00.000Z"
+                      interaction_type: Delete Purchase Request Item
+                      user_name: Juan Dela Cruz
+                      field: Is Received
+                      old_value: "No"
+                      new_value: null
+                      interaction_detail: "Deleted item from PR No: 202500045. Item: Office Chair."
+                    - audit_log_id: 13
+                      entity_name: "PR-202500045"
+                      interaction_date: "2025-06-09T10:05:00.000Z"
+                      interaction_type: Update Purchase Request
+                      user_name: Juan Dela Cruz
+                      field: PR Status
+                      old_value: In Process
+                      new_value: Received
+                      interaction_detail: "All items received — Purchase Request auto-completed. PR No: 202500045."
+                    - audit_log_id: 13
+                      entity_name: "PR-202500045"
+                      interaction_date: "2025-06-09T10:05:00.000Z"
+                      interaction_type: Update Purchase Request
+                      user_name: Juan Dela Cruz
+                      field: Date Received
+                      old_value: null
+                      new_value: "2025-06-09"
+                      interaction_detail: "All items received — Purchase Request auto-completed. PR No: 202500045."
+                    - audit_log_id: 13
+                      entity_name: "PR-202500045"
+                      interaction_date: "2025-06-09T10:05:00.000Z"
+                      interaction_type: Update Purchase Request
+                      user_name: Juan Dela Cruz
+                      field: Received By
+                      old_value: null
+                      new_value: Juan Dela Cruz
+                      interaction_detail: "All items received — Purchase Request auto-completed. PR No: 202500045."
+                    - audit_log_id: 12
+                      entity_name: "PR-202500045 – Laptop Charger"
+                      interaction_date: "2025-06-09T10:04:30.000Z"
+                      interaction_type: Update Purchase Request Item
+                      user_name: Juan Dela Cruz
+                      field: Is Received
+                      old_value: "No"
+                      new_value: "Yes"
+                      interaction_detail: "Marked item as received under PR No: 202500045. Item: Laptop Charger."
+                    - audit_log_id: 10
+                      entity_name: "PR-202500045 – Laptop Charger"
+                      interaction_date: "2025-06-08T16:40:00.000Z"
+                      interaction_type: Add Purchase Request Item
+                      user_name: Maria Santos
+                      field: Item Description
+                      old_value: null
+                      new_value: Laptop Charger
+                      interaction_detail: "Added item to PR No: 202500045. Item: Laptop Charger."
+                    - audit_log_id: 10
+                      entity_name: "PR-202500045 – Laptop Charger"
+                      interaction_date: "2025-06-08T16:40:00.000Z"
+                      interaction_type: Add Purchase Request Item
+                      user_name: Maria Santos
+                      field: Item Quantity
+                      old_value: null
+                      new_value: "5"
+                      interaction_detail: "Added item to PR No: 202500045. Item: Laptop Charger."
+                    - audit_log_id: 10
+                      entity_name: "PR-202500045 – Laptop Charger"
+                      interaction_date: "2025-06-08T16:40:00.000Z"
+                      interaction_type: Add Purchase Request Item
+                      user_name: Maria Santos
+                      field: Unit Price
+                      old_value: null
+                      new_value: "850.00"
+                      interaction_detail: "Added item to PR No: 202500045. Item: Laptop Charger."
+                    - audit_log_id: 10
+                      entity_name: "PR-202500045 – Laptop Charger"
+                      interaction_date: "2025-06-08T16:40:00.000Z"
+                      interaction_type: Add Purchase Request Item
+                      user_name: Maria Santos
+                      field: Is Received
+                      old_value: null
+                      new_value: "No"
+                      interaction_detail: "Added item to PR No: 202500045. Item: Laptop Charger."
+                    - audit_log_id: 4
+                      entity_name: "PR-202500045"
+                      interaction_date: "2025-06-08T09:30:00.000Z"
+                      interaction_type: Add Purchase Request
+                      user_name: Maria Santos
+                      field: PR Status
+                      old_value: null
+                      new_value: In Process
+                      interaction_detail: "Added Purchase Request. PR No: 202500045."
+                    - audit_log_id: 4
+                      entity_name: "PR-202500045"
+                      interaction_date: "2025-06-08T09:30:00.000Z"
+                      interaction_type: Add Purchase Request
+                      user_name: Maria Santos
+                      field: Date Requested
+                      old_value: null
+                      new_value: "2025-06-08"
+                      interaction_detail: "Added Purchase Request. PR No: 202500045."
+                    - audit_log_id: 4
+                      entity_name: "PR-202500045"
+                      interaction_date: "2025-06-08T09:30:00.000Z"
+                      interaction_type: Add Purchase Request
+                      user_name: Maria Santos
+                      field: Requested By
+                      old_value: null
+                      new_value: Maria Santos
+                      interaction_detail: "Added Purchase Request. PR No: 202500045."
+                no_history:
+                  summary: No purchase request interactions logged
+                  description: >
+                    No audit log entries exist yet for any purchase request
+                    or item.
+                  value:
+                    message: No audit logs found
+                    data: []
+        "401":
+          description: >
+            Unauthorized - The request did not include a valid Bearer token,
+            or the token has expired or is malformed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                no_token:
+                  summary: No token provided
+                  value:
+                    message: "Unauthorized Access: No Token Provided"
+                invalid_token:
+                  summary: Token is invalid or expired
+                  value:
+                    message: "Unauthorized Access: Invalid Token"
+        "403":
+          description: >
+            Forbidden - The authenticated user does not have the IT Manager or
+            IT Supervisor role assigned to their account.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                insufficient_permissions:
+                  summary: User lacks the required role
+                  value:
+                    message: "Forbidden: Insufficient permissions"
+        "500":
+          description: >
+            Internal Server Error - An unexpected error occurred on the server
+            while attempting to retrieve the purchase request audit trail,
+            typically due to a database connectivity or query failure.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                server_error:
+                  summary: Unexpected server-side failure
+                  value:
+                    message: Something went wrong
+
+  /audit/user:
+    get:
+      tags:
+        - Audit Logs
+      summary: Retrieve the audit trail for all system user accounts
+      description: >
+        Returns audit trail entries for every interaction that has ever
+        targeted a system user account (target_table = "user"), across every
+        user in the system. Entries are ordered newest interaction first.
+
+
+        Covered interaction types: "Add System User", "Update System User",
+        "Grant Permission", "Revoke Permission".
+
+
+        Each entry is a flattened BizBox-style row. "Add System User" is a
+        creation event: it produces one row per populated field on the new
+        account (e.g. User Name, User Email, User Employee ID, User Role,
+        User Status, User Username), with old_value null and new_value set
+        to the field's initial value. "Update System User" produces one row
+        per individual field (user_email, user_role, and/or user_status)
+        that actually changed between the before and after snapshot - an
+        update that touched multiple fields will appear as multiple rows
+        sharing the same audit_log_id. "Grant Permission" and "Revoke
+        Permission" each produce a single synthetic "Permissions" field row,
+        where old_value and new_value are the user's FULL held permission_id
+        set (sorted ascending, comma-separated) immediately before and after
+        the grant/revoke - not just the permission_id(s) that were
+        granted/revoked in that request.
+
+
+        Note: user_name and user_username are never reported as a changed
+        field on "Update System User" rows - user_username is immutable by
+        design, and user_name is no longer part of PATCH /user/:id's
+        editable surface, so neither value ever differs between the before
+        and after snapshot.
+
+
+        entity_name is resolved from the user_name value captured in the
+        snapshot at the time of the interaction, not from a live lookup -
+        so the name shown reflects what it was at that point in time, even
+        if the account was later deactivated or its details changed.
+
+
+        To retrieve the trail for one specific system user only, use
+        GET /audit/user/:id.
+
+
+        Required Permission: IT Manager or IT Supervisor role.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: >
+            Audit trail retrieved successfully. Returns a flattened JSON
+            array of BizBox-style audit rows across every system user
+            account, ordered newest-first. If no user account interactions
+            have ever been logged, returns a structured response with an
+            empty data array and an informational message.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: array
+                    items:
+                      $ref: "#/components/schemas/AuditTrailEntry"
+                  - $ref: "#/components/schemas/EmptyAuditLogResponse"
+              examples:
+                with_history:
+                  summary: System user audit trail with multiple interactions
+                  description: >
+                    A permission was revoked, then granted, then the
+                    account's role was updated, and finally the full
+                    creation event for the account is shown - one row per
+                    populated field, all sharing the same audit_log_id.
+                  value:
+                    - audit_log_id: 23
+                      entity_name: Maria Santos
+                      interaction_date: "2025-06-09T14:00:00.000Z"
+                      interaction_type: Revoke Permission
+                      user_name: Juan Dela Cruz
+                      field: Permissions
+                      old_value: "1, 2, 9, 11, 12, 22"
+                      new_value: "9, 11, 12, 22"
+                      interaction_detail: "Revoked temporary permission(s): [1, 2] from system user: Maria Santos."
+                    - audit_log_id: 21
+                      entity_name: Maria Santos
+                      interaction_date: "2025-06-09T09:00:00.000Z"
+                      interaction_type: Grant Permission
+                      user_name: Juan Dela Cruz
+                      field: Permissions
+                      old_value: "9, 11, 12, 22"
+                      new_value: "1, 2, 9, 11, 12, 22"
+                      interaction_detail: "Granted temporary permission(s): [1, 2] to system user: Maria Santos. Validity: 2025-06-09 09:00:00 to 2025-06-16 09:00:00."
+                    - audit_log_id: 20
+                      entity_name: Maria Santos
+                      interaction_date: "2025-06-08T16:20:00.000Z"
+                      interaction_type: Update System User
+                      user_name: Juan Dela Cruz
+                      field: User Role
+                      old_value: IT Helpdesk
+                      new_value: IT Supervisor
+                      interaction_detail: Updated account details of Maria Santos.
+                    - audit_log_id: 6
+                      entity_name: Maria Santos
+                      interaction_date: "2025-06-08T09:00:00.000Z"
+                      interaction_type: Add System User
+                      user_name: Juan Dela Cruz
+                      field: User Name
+                      old_value: null
+                      new_value: Maria Santos
+                      interaction_detail: "Added System User. Name: Maria Santos Employee ID: 20099."
+                    - audit_log_id: 6
+                      entity_name: Maria Santos
+                      interaction_date: "2025-06-08T09:00:00.000Z"
+                      interaction_type: Add System User
+                      user_name: Juan Dela Cruz
+                      field: User Email
+                      old_value: null
+                      new_value: msantos@tmcsl.com
+                      interaction_detail: "Added System User. Name: Maria Santos Employee ID: 20099."
+                    - audit_log_id: 6
+                      entity_name: Maria Santos
+                      interaction_date: "2025-06-08T09:00:00.000Z"
+                      interaction_type: Add System User
+                      user_name: Juan Dela Cruz
+                      field: User Employee ID
+                      old_value: null
+                      new_value: "20099"
+                      interaction_detail: "Added System User. Name: Maria Santos Employee ID: 20099."
+                    - audit_log_id: 6
+                      entity_name: Maria Santos
+                      interaction_date: "2025-06-08T09:00:00.000Z"
+                      interaction_type: Add System User
+                      user_name: Juan Dela Cruz
+                      field: User Role
+                      old_value: null
+                      new_value: IT Helpdesk
+                      interaction_detail: "Added System User. Name: Maria Santos Employee ID: 20099."
+                    - audit_log_id: 6
+                      entity_name: Maria Santos
+                      interaction_date: "2025-06-08T09:00:00.000Z"
+                      interaction_type: Add System User
+                      user_name: Juan Dela Cruz
+                      field: User Status
+                      old_value: null
+                      new_value: Active
+                      interaction_detail: "Added System User. Name: Maria Santos Employee ID: 20099."
+                    - audit_log_id: 6
+                      entity_name: Maria Santos
+                      interaction_date: "2025-06-08T09:00:00.000Z"
+                      interaction_type: Add System User
+                      user_name: Juan Dela Cruz
+                      field: User Username
+                      old_value: null
+                      new_value: msantos
+                      interaction_detail: "Added System User. Name: Maria Santos Employee ID: 20099."
+                no_history:
+                  summary: No system user interactions logged
+                  description: >
+                    No audit log entries exist yet for any system user
+                    account. This can also happen if every existing account
+                    predates this audit logging being introduced (e.g. was
+                    registered before "Add System User" logging was added).
+                  value:
+                    message: No audit logs found
+                    data: []
+        "401":
+          description: >
+            Unauthorized - The request did not include a valid Bearer token,
+            or the token has expired or is malformed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                no_token:
+                  summary: No token provided
+                  value:
+                    message: "Unauthorized Access: No Token Provided"
+                invalid_token:
+                  summary: Token is invalid or expired
+                  value:
+                    message: "Unauthorized Access: Invalid Token"
+        "403":
+          description: >
+            Forbidden - The authenticated user does not have the IT Manager or
+            IT Supervisor role assigned to their account.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                insufficient_permissions:
+                  summary: User lacks the required role
+                  value:
+                    message: "Forbidden: Insufficient permissions"
+        "500":
+          description: >
+            Internal Server Error - An unexpected error occurred on the server
+            while attempting to retrieve the system user audit trail,
+            typically due to a database connectivity or query failure.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                server_error:
+                  summary: Unexpected server-side failure
+                  value:
+                    message: Something went wrong
+
+  "/audit/user/:id":
+    get:
+      tags:
+        - Audit Logs
+      summary: Retrieve the full audit history for one specific system user account
+      description: >
+        Returns all audit trail entries that reference a single system user
+        account, identified by the given user_id and matched via the
+        target_table and target_id columns. Entries are ordered newest
+        interaction first.
+
+
+        This covers every tracked interaction that has ever targeted this
+        specific account, including its creation ("Add System User") and
+        every subsequent edit ("Update System User", "Grant Permission",
+        "Revoke Permission").
+
+
+        Each entry is a flattened BizBox-style row. The creation event
+        produces one row per populated field, with field/old_value/new_value
+        set the same way as GET /audit/user. All other interaction types
+        produce one row per individual field that changed - an interaction
+        that changed multiple fields will appear as multiple rows sharing
+        the same audit_log_id.
+
+
+        Required Permission: IT Manager or IT Supervisor role.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: >
+            The user_id (primary key of the user table) of the system user
+            account whose audit history is to be retrieved. Must be a
+            positive integer.
+          schema:
+            type: integer
+            example: 6
+      responses:
+        "200":
+          description: >
+            Audit history retrieved successfully. Returns a flattened JSON
+            array of BizBox-style audit rows for the specified system user
+            account, ordered newest-first. If no entries exist for the given
+            user_id (e.g., the account was registered before audit logging
+            was in place, or the ID does not correspond to any tracked
+            account), returns a structured response with an empty data
+            array and an informational message.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: array
+                    items:
+                      $ref: "#/components/schemas/AuditTrailEntry"
+                  - $ref: "#/components/schemas/EmptyAssetAuditLogResponse"
+              examples:
+                single_record_history:
+                  summary: System user has audit trail entries
+                  description: >
+                    The system user with ID 6 was added, then later had a
+                    single field updated.
+                  value:
+                    - audit_log_id: 20
+                      entity_name: Maria Santos
+                      interaction_date: "2025-06-08T16:20:00.000Z"
+                      interaction_type: Update System User
+                      user_name: Juan Dela Cruz
+                      field: User Role
+                      old_value: IT Helpdesk
+                      new_value: IT Supervisor
+                      interaction_detail: Updated account details of Maria Santos.
+                    - audit_log_id: 6
+                      entity_name: Maria Santos
+                      interaction_date: "2025-06-08T09:00:00.000Z"
+                      interaction_type: Add System User
+                      user_name: Juan Dela Cruz
+                      field: User Name
+                      old_value: null
+                      new_value: Maria Santos
+                      interaction_detail: "Added System User. Name: Maria Santos Employee ID: 20099."
+                    - audit_log_id: 6
+                      entity_name: Maria Santos
+                      interaction_date: "2025-06-08T09:00:00.000Z"
+                      interaction_type: Add System User
+                      user_name: Juan Dela Cruz
+                      field: User Employee ID
+                      old_value: null
+                      new_value: "20099"
+                      interaction_detail: "Added System User. Name: Maria Santos Employee ID: 20099."
+                no_history:
+                  summary: No audit trail entries found for this system user
+                  description: >
+                    The user_id is valid but no audit log entries reference
+                    it. This can occur for accounts that existed before
+                    audit logging was introduced.
+                  value:
+                    message: No audit logs found for this asset
+                    data: []
+        "400":
+          description: >
+            Bad Request - The provided id path parameter is missing or is not
+            a valid positive integer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                missing_id:
+                  summary: The user ID is zero or not a valid integer
+                  value:
+                    message: Missing asset ID
+        "401":
+          description: >
+            Unauthorized - The request did not include a valid Bearer token,
+            or the token has expired or is malformed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                no_token:
+                  summary: No token provided
+                  value:
+                    message: "Unauthorized Access: No Token Provided"
+                invalid_token:
+                  summary: Token is invalid or expired
+                  value:
+                    message: "Unauthorized Access: Invalid Token"
+        "403":
+          description: >
+            Forbidden - The authenticated user does not have the IT Manager or
+            IT Supervisor role assigned to their account.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                insufficient_permissions:
+                  summary: User lacks the required role
+                  value:
+                    message: "Forbidden: Insufficient permissions"
+        "500":
+          description: >
+            Internal Server Error - An unexpected error occurred on the server
+            while attempting to retrieve the system user audit history,
+            typically due to a database connectivity or query failure.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                server_error:
+                  summary: Unexpected server-side failure
+                  value:
+                    message: Something went wrong
+
+  /audit/end-user:
+    get:
+      tags:
+        - Audit Logs
+      summary: Retrieve the audit trail for all end users
+      description: >
+        Returns audit trail entries for every interaction that has ever
+        targeted an end user record (target_table = "end_user"), across
+        every end user in the system. Entries are ordered newest
+        interaction first.
+
+
+        Covered interaction types: "Add End User", "Update End User".
+
+
+        An end user can be created through TWO separate paths, and both are
+        logged identically here under "Add End User": (1) the dedicated
+        POST /end-user registration endpoint, and (2) silent
+        auto-registration through asset assignment - e.g. assigning a
+        computer or software license to an employee ID that has no
+        existing end_user record yet, which registers that employee as an
+        end user as a side effect. The interaction_detail text is the only
+        way to tell the two apart after the fact ("Added End User.
+        Employee ID: ..." for the dedicated endpoint, vs. "Added End User
+        via asset assignment. Employee ID: ..." for the asset-assignment
+        path) - the interaction_type, target_table, and snapshot shape are
+        otherwise identical.
+
+
+        Each entry is a flattened BizBox-style row. "Add End User" is a
+        creation event: it produces one row per populated field on the new
+        end user (End User Name, End User Emp ID, End User Division, End
+        User Department, End User Location, and optionally End User Email
+        / End User Contact No if supplied), with old_value null and
+        new_value set to the field's initial value - End User Status is
+        always included and always defaults to "Active" at creation, since
+        the database column defaults to "Active" and neither creation path
+        accepts a status override. "Update End User" produces one row per
+        individual field that actually changed between the before and
+        after snapshot - this covers both edits made via PATCH
+        /end-user/:id (name, division, department, location, email,
+        contact number, and/or status together) and status-only changes
+        made via the dedicated end user status endpoint, since both log
+        under this same interaction_type and target_table. An update that
+        touched multiple fields will appear as multiple rows sharing the
+        same audit_log_id.
+
+
+        End User Department is stored and reported as the numeric
+        department_id foreign key, not the resolved department name -
+        resolve it against GET /department if a human-readable name is
+        needed.
+
+
+        entity_name is resolved from the eu_name value captured in the
+        snapshot at the time of the interaction, not from a live lookup -
+        so the name shown reflects what it was at that point in time, even
+        if the end user's name was later changed or their status set to
+        Resigned.
+
+
+        To retrieve the trail for one specific end user only, use
+        GET /audit/end-user/:id.
+
+
+        Required Permission: IT Manager or IT Supervisor role.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: >
+            Audit trail retrieved successfully. Returns a flattened JSON
+            array of BizBox-style audit rows across every end user, ordered
+            newest-first. If no end user interactions have ever been
+            logged, returns a structured response with an empty data array
+            and an informational message.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: array
+                    items:
+                      $ref: "#/components/schemas/AuditTrailEntry"
+                  - $ref: "#/components/schemas/EmptyAuditLogResponse"
+              examples:
+                with_history:
+                  summary: End user audit trail with multiple interactions
+                  description: >
+                    One end user's status was updated to Resigned, another
+                    end user was auto-registered through asset assignment
+                    (no dedicated registration call was ever made for
+                    them), and finally the full creation event for a third
+                    end user - added through the dedicated endpoint - is
+                    shown as one row per populated field, all sharing the
+                    same audit_log_id.
+                  value:
+                    - audit_log_id: 33
+                      entity_name: Carlos Reyes
+                      interaction_date: "2025-06-10T11:00:00.000Z"
+                      interaction_type: Update End User
+                      user_name: Juan Dela Cruz
+                      field: End User Status
+                      old_value: Active
+                      new_value: Resigned
+                      interaction_detail: "Updated status of end user: Carlos Reyes to Resigned."
+                    - audit_log_id: 29
+                      entity_name: Ana Villareal
+                      interaction_date: "2025-06-09T15:30:00.000Z"
+                      interaction_type: Add End User
+                      user_name: Maria Santos
+                      field: End User Name
+                      old_value: null
+                      new_value: Ana Villareal
+                      interaction_detail: "Added End User via asset assignment. Employee ID: 20045 Name: Ana Villareal."
+                    - audit_log_id: 29
+                      entity_name: Ana Villareal
+                      interaction_date: "2025-06-09T15:30:00.000Z"
+                      interaction_type: Add End User
+                      user_name: Maria Santos
+                      field: End User Emp ID
+                      old_value: null
+                      new_value: "20045"
+                      interaction_detail: "Added End User via asset assignment. Employee ID: 20045 Name: Ana Villareal."
+                    - audit_log_id: 29
+                      entity_name: Ana Villareal
+                      interaction_date: "2025-06-09T15:30:00.000Z"
+                      interaction_type: Add End User
+                      user_name: Maria Santos
+                      field: End User Status
+                      old_value: null
+                      new_value: Active
+                      interaction_detail: "Added End User via asset assignment. Employee ID: 20045 Name: Ana Villareal."
+                    - audit_log_id: 8
+                      entity_name: Maria Lopez
+                      interaction_date: "2025-06-08T14:10:00.000Z"
+                      interaction_type: Add End User
+                      user_name: Juan Dela Cruz
+                      field: End User Name
+                      old_value: null
+                      new_value: Maria Lopez
+                      interaction_detail: "Added End User. Employee ID: 20099 Name: Maria Lopez."
+                    - audit_log_id: 8
+                      entity_name: Maria Lopez
+                      interaction_date: "2025-06-08T14:10:00.000Z"
+                      interaction_type: Add End User
+                      user_name: Juan Dela Cruz
+                      field: End User Emp ID
+                      old_value: null
+                      new_value: "20099"
+                      interaction_detail: "Added End User. Employee ID: 20099 Name: Maria Lopez."
+                    - audit_log_id: 8
+                      entity_name: Maria Lopez
+                      interaction_date: "2025-06-08T14:10:00.000Z"
+                      interaction_type: Add End User
+                      user_name: Juan Dela Cruz
+                      field: End User Division
+                      old_value: null
+                      new_value: Finance
+                      interaction_detail: "Added End User. Employee ID: 20099 Name: Maria Lopez."
+                    - audit_log_id: 8
+                      entity_name: Maria Lopez
+                      interaction_date: "2025-06-08T14:10:00.000Z"
+                      interaction_type: Add End User
+                      user_name: Juan Dela Cruz
+                      field: End User Department
+                      old_value: null
+                      new_value: "3"
+                      interaction_detail: "Added End User. Employee ID: 20099 Name: Maria Lopez."
+                    - audit_log_id: 8
+                      entity_name: Maria Lopez
+                      interaction_date: "2025-06-08T14:10:00.000Z"
+                      interaction_type: Add End User
+                      user_name: Juan Dela Cruz
+                      field: End User Location
+                      old_value: null
+                      new_value: 3F
+                      interaction_detail: "Added End User. Employee ID: 20099 Name: Maria Lopez."
+                    - audit_log_id: 8
+                      entity_name: Maria Lopez
+                      interaction_date: "2025-06-08T14:10:00.000Z"
+                      interaction_type: Add End User
+                      user_name: Juan Dela Cruz
+                      field: End User Email
+                      old_value: null
+                      new_value: mlopez@tmcsl.com
+                      interaction_detail: "Added End User. Employee ID: 20099 Name: Maria Lopez."
+                    - audit_log_id: 8
+                      entity_name: Maria Lopez
+                      interaction_date: "2025-06-08T14:10:00.000Z"
+                      interaction_type: Add End User
+                      user_name: Juan Dela Cruz
+                      field: End User Contact No
+                      old_value: null
+                      new_value: "09171234567"
+                      interaction_detail: "Added End User. Employee ID: 20099 Name: Maria Lopez."
+                    - audit_log_id: 8
+                      entity_name: Maria Lopez
+                      interaction_date: "2025-06-08T14:10:00.000Z"
+                      interaction_type: Add End User
+                      user_name: Juan Dela Cruz
+                      field: End User Status
+                      old_value: null
+                      new_value: Active
+                      interaction_detail: "Added End User. Employee ID: 20099 Name: Maria Lopez."
+                no_history:
+                  summary: No end user interactions logged
+                  description: >
+                    No audit log entries exist yet for any end user. This
+                    can also happen if every existing end user record
+                    predates this audit logging being introduced (e.g. was
+                    added before end_user snapshotting was retrofitted).
+                  value:
+                    message: No audit logs found
+                    data: []
+        "401":
+          description: >
+            Unauthorized - The request did not include a valid Bearer token,
+            or the token has expired or is malformed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                no_token:
+                  summary: No token provided
+                  value:
+                    message: "Unauthorized Access: No Token Provided"
+                invalid_token:
+                  summary: Token is invalid or expired
+                  value:
+                    message: "Unauthorized Access: Invalid Token"
+        "403":
+          description: >
+            Forbidden - The authenticated user does not have the IT Manager or
+            IT Supervisor role assigned to their account.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                insufficient_permissions:
+                  summary: User lacks the required role
+                  value:
+                    message: "Forbidden: Insufficient permissions"
+        "500":
+          description: >
+            Internal Server Error - An unexpected error occurred on the server
+            while attempting to retrieve the end user audit trail,
+            typically due to a database connectivity or query failure.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                server_error:
+                  summary: Unexpected server-side failure
+                  value:
+                    message: Something went wrong
+
+  "/audit/end-user/:id":
+    get:
+      tags:
+        - Audit Logs
+      summary: Retrieve the full audit history for one specific end user
+      description: >
+        Returns all audit trail entries that reference a single end user
+        record, identified by the given eu_id and matched via the
+        target_table and target_id columns. Entries are ordered newest
+        interaction first.
+
+
+        This covers every tracked interaction that has ever targeted this
+        specific end user, including its creation ("Add End User" - via
+        either the dedicated registration endpoint or auto-registration
+        through asset assignment) and every subsequent edit
+        ("Update End User").
+
+
+        Each entry is a flattened BizBox-style row. The creation event
+        produces one row per populated field, with field/old_value/new_value
+        set the same way as GET /audit/end-user. All other interaction
+        types produce one row per individual field that changed - an
+        interaction that changed multiple fields will appear as multiple
+        rows sharing the same audit_log_id.
+
+
+        Required Permission: IT Manager or IT Supervisor role.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: >
+            The eu_id (primary key of the end_user table) of the end user
+            whose audit history is to be retrieved. Must be a positive
+            integer.
+          schema:
+            type: integer
+            example: 8
+      responses:
+        "200":
+          description: >
+            Audit history retrieved successfully. Returns a flattened JSON
+            array of BizBox-style audit rows for the specified end user,
+            ordered newest-first. If no entries exist for the given eu_id
+            (e.g., the end user record predates audit logging, or the ID
+            does not correspond to any tracked record), returns a
+            structured response with an empty data array and an
+            informational message.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: array
+                    items:
+                      $ref: "#/components/schemas/AuditTrailEntry"
+                  - $ref: "#/components/schemas/EmptyAssetAuditLogResponse"
+              examples:
+                single_record_history:
+                  summary: End user has audit trail entries
+                  description: >
+                    The end user with ID 8 was added, then later had a
+                    single field updated.
+                  value:
+                    - audit_log_id: 33
+                      entity_name: Maria Lopez
+                      interaction_date: "2025-06-10T11:00:00.000Z"
+                      interaction_type: Update End User
+                      user_name: Juan Dela Cruz
+                      field: End User Location
+                      old_value: 3F
+                      new_value: 2F
+                      interaction_detail: "Updated details of end user: Maria Lopez."
+                    - audit_log_id: 8
+                      entity_name: Maria Lopez
+                      interaction_date: "2025-06-08T14:10:00.000Z"
+                      interaction_type: Add End User
+                      user_name: Juan Dela Cruz
+                      field: End User Name
+                      old_value: null
+                      new_value: Maria Lopez
+                      interaction_detail: "Added End User. Employee ID: 20099 Name: Maria Lopez."
+                    - audit_log_id: 8
+                      entity_name: Maria Lopez
+                      interaction_date: "2025-06-08T14:10:00.000Z"
+                      interaction_type: Add End User
+                      user_name: Juan Dela Cruz
+                      field: End User Emp ID
+                      old_value: null
+                      new_value: "20099"
+                      interaction_detail: "Added End User. Employee ID: 20099 Name: Maria Lopez."
+                no_history:
+                  summary: No audit trail entries found for this end user
+                  description: >
+                    The eu_id is valid but no audit log entries reference
+                    it. This can occur for end user records that existed
+                    before audit logging was introduced.
+                  value:
+                    message: No audit logs found for this asset
+                    data: []
+        "400":
+          description: >
+            Bad Request - The provided id path parameter is missing or is not
+            a valid positive integer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                missing_id:
+                  summary: The end user ID is zero or not a valid integer
+                  value:
+                    message: Missing asset ID
+        "401":
+          description: >
+            Unauthorized - The request did not include a valid Bearer token,
+            or the token has expired or is malformed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                no_token:
+                  summary: No token provided
+                  value:
+                    message: "Unauthorized Access: No Token Provided"
+                invalid_token:
+                  summary: Token is invalid or expired
+                  value:
+                    message: "Unauthorized Access: Invalid Token"
+        "403":
+          description: >
+            Forbidden - The authenticated user does not have the IT Manager or
+            IT Supervisor role assigned to their account.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                insufficient_permissions:
+                  summary: User lacks the required role
+                  value:
+                    message: "Forbidden: Insufficient permissions"
+        "500":
+          description: >
+            Internal Server Error - An unexpected error occurred on the server
+            while attempting to retrieve the end user audit history,
+            typically due to a database connectivity or query failure.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                server_error:
+                  summary: Unexpected server-side failure
+                  value:
+                    message: Something went wrong
+
+components:
+  schemas:
+    AuditTrailEntry:
+      type: object
+      description: >
+        A single flattened, BizBox-style audit trail row. Unlike the raw
+        audit_log table structure, one underlying audit_log record can expand
+        into multiple AuditTrailEntry rows - one per field that was actually
+        changed - so that each row represents exactly one Field / Old Value /
+        New Value fact. Rows produced from the same underlying interaction
+        share the same audit_log_id, interaction_date, interaction_type,
+        user_name, and interaction_detail.
+
+
+        For interactions with no discrete field-level change to report -
+        asset creation events and every system-level (non-asset) interaction
+        type - a single row is returned with field, old_value, and new_value
+        all set to null. In that case, interaction_detail is the primary
+        source of context for what occurred.
+      properties:
+        audit_log_id:
+          type: integer
+          description: >
+            The audit_log_id of the underlying audit_log record this row was
+            derived from. NOT NULL. Multiple AuditTrailEntry rows may share
+            the same audit_log_id when a single interaction changed more than
+            one field.
+          example: 9
+        entity_name:
+          type: string
+          nullable: true
+          description: >
+            The human-readable name or identifier of the affected asset or
+            purchase request, resolved from the snapshot captured at the
+            time of the interaction rather than a live lookup.
+
+
+            For asset types, this is the relevant name column
+            (computer_name, software_name, printer_name, and
+            network_device_name for their respective asset types; serial_no
+            for UPS, since the ups table has no dedicated name column). For
+            purchase requests, this is "PR-<pr_no>" for header-level
+            interactions, or "PR-<pr_no> – <item description>" for
+            item-level interactions (Add/Update/Delete Purchase Request
+            Item), since a single purchase request can have many items. For
+            system user interactions (target_table = "user"), this is the
+            affected account's user_name. For end user interactions
+            (target_table = "end_user"), this is the affected end user's
+            eu_name.
+
+
+            Always null for system-level (non-asset) interactions, since
+            target_table is null in that case.
+          example: DESKTOP-IT-012
+        interaction_date:
+          type: string
+          format: date-time
+          description: >
+            Timestamp of when the underlying interaction occurred. NOT NULL.
+            Returned in ISO 8601 format by the API.
+          example: "2025-06-08T15:00:00.000Z"
+        interaction_type:
+          type: string
+          description: >
+            A short label categorizing the type of system action that was
+            performed. NOT NULL. This value is set programmatically by the
+            backend at the time the log is created. It is not an ENUM in the
+            database, so values may vary. When using the type filter on
+            GET /audit/system, the value supplied must match this field
+            exactly, including casing.
+
+
+            Asset interaction types that can produce field-level rows
+            (including creation events, which always produce a single
+            null-field row): "Add Computer", "Update Computer",
+            "Assign Computer", "Unassign Computer", "Update Computer Network",
+            "Add Software", "Update Software", "Assign Software",
+            "Unassign Software", "Add Printer", "Update Printer",
+            "Update Printer Network", "Add UPS", "Update UPS",
+            "Add Network Device", "Update Network Device".
+
+
+            Purchase-request interaction types - logged with target_table =
+            "purchase_request" so they carry an entity_name, and can produce
+            field-level rows the same way asset types do (creation and
+            deletion events always produce at least one row per populated
+            field): "Add Purchase Request", "Update Purchase Request",
+            "Add Purchase Request Item", "Update Purchase Request Item",
+            "Delete Purchase Request Item".
+
+
+            System user interaction types - logged with target_table =
+            "user" so they carry an entity_name (the affected system user's
+            name), and can produce field-level rows the same way asset
+            types do: "Add System User" (creation - one row per populated
+            field), "Update System User" (one row per field that actually
+            changed among user_email/user_role/user_status), and "Grant
+            Permission"/"Revoke Permission" (always a single synthetic
+            "Permissions" field row, whose old_value/new_value are the
+            user's full held permission_id set before/after the change, not
+            just the ones granted/revoked in that request).
+
+
+            End user interaction types - logged with target_table =
+            "end_user" so they carry an entity_name (the affected end
+            user's eu_name), and can produce field-level rows the same way
+            asset types do: "Add End User" (creation - one row per
+            populated field; produced both by the dedicated POST /end-user
+            endpoint and by silent auto-registration through asset
+            assignment) and "Update End User" (one row per field that
+            actually changed, including eu_status - PATCH /end-user/:id
+            and the dedicated status-update endpoint both log under this
+            same interaction_type).
+
+
+            System-level interaction types, which always produce a single
+            null-field row: "Login", "Change Password", "Add Department",
+            "Update Department", "Add Peripheral", "Update Peripheral",
+            "Add Program", "Update Program", "Add Vendor", "Update Vendor",
+            "Add Category", "Update Category Status",
+            "Download Computer Report", "Download Software Report",
+            "Download UPS Report", "Download Printer Report",
+            "Download Network Device Report", "Download End User Report".
+          example: Update Computer
+        user_name:
+          type: string
+          description: >
+            The full name of the authenticated system user (the actor) who
+            performed the interaction. NOT NULL. Resolved via a join against
+            the user table on the audit_log's user_id.
+          example: Juan Dela Cruz
+        field:
+          type: string
+          nullable: true
+          description: >
+            The humanized label of the specific field that was changed by
+            this interaction (e.g., "ip_address" is rendered as "IP Address").
+            Null when the interaction is an asset creation event or any
+            system-level interaction, since there is no discrete before/after
+            field pairing to report in those cases - refer to
+            interaction_detail instead. The primary key column of the
+            affected asset table is never reported as a field, even if it
+            technically differs between snapshots.
+          example: Computer Status
+        old_value:
+          type: string
+          nullable: true
+          description: >
+            The value of field immediately before the change was applied,
+            taken from the stored snapshot_before. Null when field is null
+            (creation or system-level events), or when the field genuinely
+            had no prior value (e.g., an unassigned field being set for the
+            first time). Pipe-delimited multi-value fields (such as assigned
+            peripherals or programs) are rendered as a comma-separated list.
+          example: Spare
+        new_value:
+          type: string
+          nullable: true
+          description: >
+            The value of field immediately after the change was applied,
+            taken from the stored snapshot_after. Null only when field is
+            null (creation or system-level events) and the field itself has
+            no value in the newly created record. Pipe-delimited multi-value
+            fields (such as assigned peripherals or programs) are rendered as
+            a comma-separated list.
+          example: Active
+        interaction_detail:
+          type: string
+          description: >
+            A human-readable description of exactly what was performed during
+            the interaction. NOT NULL. Written by the backend at the point the
+            audit log is created, providing full context such as which record
+            was affected. This is the primary source of context for
+            interactions where field, old_value, and new_value are null.
+          example: Updated details of DESKTOP-IT-012.
+
+    EmptyAuditLogResponse:
+      type: object
+      description: >
+        Returned when no audit log records match the request - either because
+        the underlying data set is empty (no filter applied, or no
+        interactions have ever been logged for the given scope) or because no
+        entries match the supplied type filter(s) on GET /audit/system. The
+        request was fully authorized and processed; there is simply no data
+        to return.
+      properties:
+        message:
+          type: string
+          example: No audit logs found
+        data:
+          type: array
+          items: {}
+          example: []
+
+    EmptyAssetAuditLogResponse:
+      type: object
+      description: >
+        Returned by the per-record audit history endpoints (e.g.
+        GET /audit/computer/:id) when no audit log entries reference the
+        specified asset record. This can occur for records that existed
+        before audit logging was introduced, or for a valid ID with no
+        tracked events. The request was fully authorized and processed;
+        there is simply no data to return.
+      properties:
+        message:
+          type: string
+          example: No audit logs found for this asset
+        data:
+          type: array
+          items: {}
+          example: []
+
+    ErrorResponse:
+      type: object
+      description: Standard error response shape returned by all error paths in this API.
+      properties:
+        message:
+          type: string
+          description: A human-readable explanation of why the request failed.
+          example: Something went wrong

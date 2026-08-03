@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Reports</title>
+  <link rel="stylesheet" href="../css/sidebar.css">
+  <link rel="stylesheet" href="../css/shared.css">
+  <link rel="stylesheet" href="../css/reports.css">
+  <script>
+    if (!localStorage.getItem("token")) { window.location.href = "../index.html"; }
+    else { const _p = JSON.parse(localStorage.getItem("permissions") || "[]"); if (!_p.includes(42)) { window.location.href = "../dashboard.html"; } }
+    const __origFetch = window.fetch;
+    window.fetch = function(u, o) {
+      return __origFetch.call(this, u, o).then(function(r) {
+        if (r.status === 401) { localStorage.clear(); window.location.href = "../index.html"; }
+        return r;
+      });
+    };
+  </script>
+</head>
+<body>
+
+  <div id="sidebar-container"></div>
+
+  <div class="page">
+    <div class="page-heading">
+      <h1 class="page-title">Reports</h1>
+    </div>
+    <div class="reports-layout">
+
+      <!-- ── Left: Report Type List ─────────────────────────────────── -->
+      <div class="report-list-panel">
+        <div class="panel-header">
+          <h2>Report Types</h2>
+        </div>
+
+        <div class="report-group">
+          <div class="report-group-label">People</div>
+
+          <button class="report-btn" data-report="end-users">
+            <span class="report-btn-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                <circle cx="9" cy="7" r="4"/>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+              </svg>
+            </span>
+            <span class="report-btn-text">
+              <span class="report-btn-name">End Users</span>
+              <span class="report-btn-desc">End user info & asset assignments</span>
+            </span>
+          </button>
+        </div>
+
+        <div class="report-group-divider"></div>
+
+        <div class="report-group">
+          <div class="report-group-label">IT Assets</div>
+
+          <button class="report-btn" data-report="computers">
+            <span class="report-btn-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="3" width="20" height="14" rx="2"/>
+                <line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
+              </svg>
+            </span>
+            <span class="report-btn-text">
+              <span class="report-btn-name">Computers</span>
+              <span class="report-btn-desc">Hardware inventory & assignments</span>
+            </span>
+          </button>
+
+          <button class="report-btn" data-report="software">
+            <span class="report-btn-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>
+              </svg>
+            </span>
+            <span class="report-btn-text">
+              <span class="report-btn-name">Software</span>
+              <span class="report-btn-desc">Licenses & software assignments</span>
+            </span>
+          </button>
+
+          <button class="report-btn" data-report="printers">
+            <span class="report-btn-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="6 9 6 2 18 2 18 9"/>
+                <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+                <rect x="6" y="14" width="12" height="8"/>
+              </svg>
+            </span>
+            <span class="report-btn-text">
+              <span class="report-btn-name">Printers</span>
+              <span class="report-btn-desc">Printer inventory & network info</span>
+            </span>
+          </button>
+
+          <button class="report-btn" data-report="network-devices">
+            <span class="report-btn-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="2" width="20" height="8" rx="2" ry="2"/>
+                <rect x="2" y="14" width="20" height="8" rx="2" ry="2"/>
+                <line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/>
+              </svg>
+            </span>
+            <span class="report-btn-text">
+              <span class="report-btn-name">Network Devices</span>
+              <span class="report-btn-desc">Switches, routers & access points</span>
+            </span>
+          </button>
+
+          <button class="report-btn" data-report="ups">
+            <span class="report-btn-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+              </svg>
+            </span>
+            <span class="report-btn-text">
+              <span class="report-btn-name">UPS Units</span>
+              <span class="report-btn-desc">Uninterruptible power supply inventory</span>
+            </span>
+          </button>
+        </div>
+
+        <div class="report-group-divider"></div>
+
+        <div class="report-group">
+          <div class="report-group-label">Audit</div>
+
+          <button class="report-btn" data-report="audit-trail">
+            <span class="report-btn-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <polyline points="12 6 12 12 16 14"/>
+              </svg>
+            </span>
+            <span class="report-btn-text">
+              <span class="report-btn-name">Audit Trail</span>
+              <span class="report-btn-desc">Field-level audit trail report</span>
+            </span>
+          </button>
+        </div>
+      </div>
+
+      <!-- ── Right: Detail / Config Panel ──────────────────────────── -->
+      <div class="report-detail-panel">
+
+        <!-- Empty state -->
+        <div class="detail-empty" id="detailEmpty">
+          <div class="detail-empty-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+            </svg>
+          </div>
+          <h3>No report selected</h3>
+          <p>Choose a report type from the list on the left to configure and download it.</p>
+        </div>
+
+        <!-- Loaded state (shown by JS) -->
+        <div class="detail-loaded" id="detailLoaded">
+          <div class="detail-header">
+            <div class="detail-header-left">
+              <div class="detail-header-icon" id="detailIcon"></div>
+              <div>
+                <p class="detail-header-title" id="detailTitle"></p>
+                <p class="detail-header-subtitle" id="detailSubtitle"></p>
+              </div>
+            </div>
+            <span class="coming-soon-badge">
+              <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+              </svg>
+              Endpoint pending
+            </span>
+          </div>
+
+          <div class="detail-body">
+            <div id="detailConfig"></div>
+
+            <div class="preview-info">
+              <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+              </svg>
+              <span>Download will be available once the <strong id="detailEndpointName"></strong> endpoint is connected. Configuration options are shown for reference.</span>
+            </div>
+          </div>
+
+          <div class="detail-actions">
+            <span class="detail-actions-left">
+              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+              </svg>
+              Output: <strong id="detailFormat">CSV</strong>
+            </span>
+            <div class="detail-actions-right">
+              <button class="btn-primary" id="btnDownload" disabled>
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                Download
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Toast ──────────────────────────────────────────────────────── -->
+  <div id="toast" class="toast hidden">
+    <svg class="toast-icon" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+    </svg>
+    <span id="toastMsg"></span>
+  </div>
+
+  <!-- ── Download Confirm Modal ─────────────────────────────────────── -->
+  <div id="downloadConfirmModal" class="modal hidden">
+    <div class="modal-content" style="max-width:420px">
+      <div class="modal-header">
+        <h2>Download Report</h2>
+        <button class="modal-close-btn" id="btnCloseDownloadConfirm">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p id="downloadConfirmMessage" style="margin:0 0 20px;font-size:14px;color:#0f172a"></p>
+        <div style="display:flex;gap:10px;justify-content:flex-end">
+          <button class="btn-secondary" id="btnCancelDownload">Cancel</button>
+          <button class="btn-primary" id="btnConfirmDownload">Download</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="../script/sidebar.js" defer></script>
+  <script src="../script/reports.js" defer></script>
+</body>
+</html>
