@@ -138,13 +138,14 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function normalizeItem(item) {
+    const itemStatus = pick(item.itemStatus, item.item_status, "");
     return {
       itemId:         pick(item.itemId, item.item_id, item.id, item.purchase_request_item_id, null),
       itemDescription: pick(item.itemDescription, item.item_description, ""),
       itemQuantity:    Number(pick(item.itemQuantity, item.item_quantity, 0)),
       unitPrice:       Number(pick(item.unitPrice, item.unit_price, 0)),
-      itemStatus:      pick(item.itemStatus, item.item_status, ""),
-      isReceived:      pick(item.isReceived, item.is_received, false),
+      itemStatus:      itemStatus,
+      isReceived:      itemStatus === "Received",
     };
   }
 
@@ -180,10 +181,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function normalizeRequest(request) {
     const items = getItems(request);
-    const receivedCount = items.filter(i => i.isReceived).length;
+    const activeItems = items.filter(i => i.itemStatus !== "Voided");
+    const receivedCount = activeItems.filter(i => i.isReceived).length;
     const rawStatus = pick(request.prStatus, request.pr_status, request.status);
     const prStatus = receivedCount > 0
-      ? (receivedCount === items.length ? "Received" : "Partial")
+      ? (receivedCount === activeItems.length ? "Received" : "Partial")
       : rawStatus;
 
     return {
@@ -254,8 +256,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const itemStatus = item.isReceived ? "Received" : (item.itemStatus || "In Process");
     const showReceive = !isReceived;
     const receiveDisabled = !item.itemId || item.isReceived;
-    const removeDisabled = isReceived || item.isReceived;
-    const statusClass = itemStatus === "Received" ? "st-received" : itemStatus === "Cancelled" ? "st-cancelled" : "st-in-process";
+    const voidDisabled = isReceived || item.isReceived || item.itemStatus === "Voided";
+    const statusClass = itemStatus === "Received" ? "st-received" : itemStatus === "Voided" ? "st-voided" : "st-in-process";
 
     row.innerHTML = `
       <div class="if-desc">
@@ -286,8 +288,8 @@ document.addEventListener("DOMContentLoaded", () => {
              </button>`
           : `<span class="if-action-placeholder"></span>`
         }
-        <button type="button" class="if-remove-btn" data-action="remove-item"
-          ${removeDisabled ? "disabled style=\"opacity:0.4;cursor:not-allowed;\"" : ""}>
+        <button type="button" class="if-remove-btn" data-action="void-item-inline"
+          ${voidDisabled ? "disabled style=\"opacity:0.4;cursor:not-allowed;\"" : ""}>
           <i data-lucide="trash-2"></i>
         </button>
       </div>
@@ -447,7 +449,8 @@ document.addEventListener("DOMContentLoaded", () => {
         const vb = b[sortState.key];
         const da = va ? new Date(va).getTime() : 0;
         const db = vb ? new Date(vb).getTime() : 0;
-        return sortState.dir === "asc" ? da - db : db - da;
+        if (da !== db) return sortState.dir === "asc" ? da - db : db - da;
+        return sortState.dir === "asc" ? (a.id ?? 0) - (b.id ?? 0) : (b.id ?? 0) - (a.id ?? 0);
       });
     }
 
@@ -702,18 +705,17 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const prTerminal = request.prStatus === "Received" || request.prStatus === "Cancelled";
       const itemsHtml = items.map((item, idx) => {
-        const itemStatus = prTerminal ? request.prStatus
-          : item.isReceived ? "Received"
+        const itemStatus = item.isReceived ? "Received"
           : (item.itemStatus || "In Process");
         const itemStatusClass = ({
           "In Process": "status-in-process",
           "On Hold":    "status-on-hold",
           "Received":   "status-received",
           "Partial":    "status-partial",
-          "Cancelled":  "status-cancelled",
+          "Voided":     "status-voided",
         })[itemStatus] || "";
         const isReceivedStatus = itemStatus === "Received";
-        const isCancelledStatus = itemStatus === "Cancelled";
+        const isVoidedStatus = itemStatus === "Voided";
         return `
           <div class="psi-row" data-item-index="${idx}">
             <div class="psr-desc">${escapeHtml(item.itemDescription || "-")}</div>
@@ -723,14 +725,14 @@ document.addEventListener("DOMContentLoaded", () => {
               <span class="status-pill ${itemStatusClass}">${escapeHtml(itemStatus)}</span>
             </div>
             <div class="psr-actions">
-              ${!isReceivedStatus && !isCancelledStatus
+              ${!isReceivedStatus && !isVoidedStatus
                 ? `<button type="button" class="action-link action-receive" data-action="confirm-receive" data-item-index="${idx}">
                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                      Receive
                    </button>
-                   <button type="button" class="action-link action-cancel" data-action="cancel-item" data-item-index="${idx}">
+                   <button type="button" class="action-link action-cancel" data-action="void-item" data-item-index="${idx}">
                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                     Remove
+                     Void
                    </button>`
                 : `<span style="color:#94a3b8;font-size:13px">—</span>`
               }
@@ -839,11 +841,11 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    // Cancel Item button
-    const cancelBtn = event.target.closest("button[data-action='cancel-item']");
-    if (cancelBtn) {
-      const subRow    = cancelBtn.closest(".psi-row");
-      const detailRow = cancelBtn.closest("tr[data-pr-detail]");
+    // Void Item button
+    const voidBtn = event.target.closest("button[data-action='void-item']");
+    if (voidBtn) {
+      const subRow    = voidBtn.closest(".psi-row");
+      const detailRow = voidBtn.closest("tr[data-pr-detail]");
       if (!subRow || !detailRow) return;
       const prId      = detailRow.dataset.prDetail;
       const idx       = Number(subRow.dataset.itemIndex);
@@ -852,17 +854,11 @@ document.addEventListener("DOMContentLoaded", () => {
       const items     = getItems(request);
       const item      = items[idx];
       if (!item) return;
-      const sourceArr = Array.isArray(request.items) ? request.items
-        : Array.isArray(request.purchaseRequestItems) ? request.purchaseRequestItems : null;
-      if (item.itemId) {
-        pendingRemoveItem = { item, sourceArr, idx, prId };
-        document.getElementById("confirmRemoveMessage").textContent =
-          `Remove item "${item.itemDescription}" from this purchase request?`;
-        document.getElementById("confirmRemoveModal").classList.remove("hidden");
-      } else {
-        if (sourceArr) sourceArr.splice(idx, 1);
-        renderTable();
-      }
+
+      pendingRemoveItem = { item, idx, prId, request };
+      document.getElementById("confirmRemoveMessage").textContent =
+        `Void item "${item.itemDescription}"? This action cannot be undone.`;
+      document.getElementById("confirmRemoveModal").classList.remove("hidden");
       return;
     }
 
@@ -884,7 +880,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const statusClassMap = {
         "In Process": "status-in-process",
         "On Hold":    "status-on-hold",
-        "Cancelled":  "status-cancelled",
+        "Voided":     "status-voided",
       };
       const newClass = statusClassMap[statusSelect.value] || "";
       statusSelect.className = `item-status-select${newClass ? " " + newClass : ""}`;
@@ -915,7 +911,8 @@ document.addEventListener("DOMContentLoaded", () => {
       purchaseRequests.sort((a, b) => {
         const da = a.dateRequested ? new Date(a.dateRequested).getTime() : 0;
         const db = b.dateRequested ? new Date(b.dateRequested).getTime() : 0;
-        return db - da;
+        if (da !== db) return db - da;
+        return (b.id ?? 0) - (a.id ?? 0);
       });
       rebuildKnownItems();
       buildColumnFilterUI();
@@ -1295,8 +1292,10 @@ document.addEventListener("DOMContentLoaded", () => {
           const recRes = await fetch(`${API_BASE}/purchase-request/item/${queuedId}`, {
             method: "PATCH",
             headers: {
+              "Content-Type": "application/json",
               ...(token ? { Authorization: `Bearer ${token}` } : {}),
             },
+            body: JSON.stringify({ itemStatus: "Received" }),
           });
           if (recRes.status === 409) {
             const errData = await recRes.json().catch(() => null);
@@ -1311,33 +1310,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       }
       pendingReceiveIds.clear();
-
-      // Compute item diffs
-      const oldItems = formSnapshot ? JSON.parse(formSnapshot.items) : [];
-      const oldIds = new Set(oldItems.filter(i => i.itemId).map(i => i.itemId));
-      const newIds = new Set(items.filter(i => i.itemId).map(i => i.itemId));
-
-      // Items removed — DELETE /item/:id
-      for (const oldItem of oldItems) {
-        if (oldItem.itemId && !newIds.has(oldItem.itemId)) {
-          const delRes = await fetch(`${API_BASE}/purchase-request/item/${oldItem.itemId}`, {
-            method: "DELETE",
-            headers: {
-              ...(token ? { Authorization: `Bearer ${token}` } : {}),
-            },
-          });
-          if (delRes.status === 409) {
-            const errData = await delRes.json().catch(() => null);
-            showAlertModal(errData?.message || "Could not remove item — it may be received or the PR is terminal.");
-            return;
-          }
-          if (!delRes.ok) {
-            const errData = await delRes.json().catch(() => null);
-            showAlertModal(errData?.message || "Failed to remove item.");
-            return;
-          }
-        }
-      }
 
       // Items added — POST /:id (send bare array)
       const addedItems = items.filter(i => !i.itemId);
@@ -1367,7 +1339,7 @@ document.addEventListener("DOMContentLoaded", () => {
       await loadRequests();
     } catch (error) {
       console.error("Error saving purchase request:", error);
-      showAlertModal("Could not save the purchase request.");
+      showAlertModal(error?.message || "Could not save the purchase request.");
     } finally {
       pendingSaveData = null;
       pendingReceiveIds.clear();
@@ -1472,11 +1444,11 @@ document.addEventListener("DOMContentLoaded", () => {
       inlineReceive.disabled = true;
       inlineReceive.style.opacity = "0.3";
       inlineReceive.style.cursor = "not-allowed";
-      const removeBtn = row.querySelector("button[data-action='remove-item']");
-      if (removeBtn) {
-        removeBtn.disabled = true;
-        removeBtn.style.opacity = "0.4";
-        removeBtn.style.cursor = "not-allowed";
+      const voidBtn = row.querySelector("button[data-action='void-item-inline']");
+      if (voidBtn) {
+        voidBtn.disabled = true;
+        voidBtn.style.opacity = "0.4";
+        voidBtn.style.cursor = "not-allowed";
       }
       const allRows = itemsContainer.querySelectorAll("[data-item-row]");
       const allReceived = Array.from(allRows).every(r =>
@@ -1491,14 +1463,14 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    const button = event.target.closest("button[data-action='remove-item']");
+    const button = event.target.closest("button[data-action='void-item-inline']");
     if (!button || button.disabled) return;
     const row = button.closest("[data-item-row]");
     if (!row) return;
     if (row.dataset.itemId) {
       pendingRemoveItem = { row };
       document.getElementById("confirmRemoveMessage").textContent =
-        `Remove this item from the purchase request?`;
+        `Void this item? This action cannot be undone.`;
       modal?.classList.add("hidden");
       document.getElementById("confirmRemoveModal").classList.remove("hidden");
       return;
@@ -1513,7 +1485,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const rows = itemsContainer.querySelectorAll("[data-item-row]");
     const isEdit = activeIndex !== null;
     rows.forEach((row) => {
-      const btn = row.querySelector("button[data-action='remove-item']");
+      const btn = row.querySelector("button[data-action='void-item-inline']");
       if (!btn || btn.disabled) return;
       const disable = isEdit && rows.length <= 1;
       btn.disabled = disable;
@@ -1630,8 +1602,10 @@ document.addEventListener("DOMContentLoaded", () => {
         const res = await fetch(`${API_BASE}/purchase-request/item/${item.itemId}`, {
           method: "PATCH",
           headers: {
+            "Content-Type": "application/json",
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
+          body: JSON.stringify({ itemStatus: "Received" }),
         });
         if (res.status === 409) {
           const errData = await res.json().catch(() => null);
@@ -1674,8 +1648,9 @@ document.addEventListener("DOMContentLoaded", () => {
   });
   document.getElementById("confirmRemoveBtn")?.addEventListener("click", async () => {
     if (!pendingRemoveItem) return;
-    const { item, sourceArr, idx, row, prId } = pendingRemoveItem;
+    const { item, sourceArr, idx, row, prId, request } = pendingRemoveItem;
 
+    // If it's a row from the modal (unsaved item), just remove it
     if (row) {
       row.remove();
       ensureAtLeastOneItemRow();
@@ -1687,37 +1662,42 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    try {
-      const res = await fetch(`${API_BASE}/purchase-request/item/${item.itemId}`, {
-        method: "DELETE",
-        headers: {
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-      });
-      if (res.status === 409) {
-        const d = await res.json().catch(() => null);
-        showAlertModal(d?.message || "Cannot remove item.");
+    // If item has an ID, void it via PATCH
+    if (item?.itemId) {
+      try {
+        const res = await fetch(`${API_BASE}/purchase-request/item/${item.itemId}`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({ itemStatus: "Voided" }),
+        });
+        if (res.status === 409) {
+          const d = await res.json().catch(() => null);
+          showAlertModal(d?.message || "Cannot void item.");
+          confirmRemoveModal?.classList.add("hidden");
+          pendingRemoveItem = null;
+          return;
+        }
+        if (!res.ok) {
+          const errData = await res.json().catch(() => null);
+          showAlertModal(errData?.message || "Could not void item.");
+          confirmRemoveModal?.classList.add("hidden");
+          pendingRemoveItem = null;
+          return;
+        }
+      } catch {
+        showAlertModal("Network error voiding item.");
         confirmRemoveModal?.classList.add("hidden");
         pendingRemoveItem = null;
         return;
       }
-      if (!res.ok) {
-        showAlertModal("Could not remove item.");
-        confirmRemoveModal?.classList.add("hidden");
-        pendingRemoveItem = null;
-        return;
-      }
-      if (sourceArr) sourceArr.splice(idx, 1);
-    } catch {
-      showAlertModal("Network error removing item.");
-      confirmRemoveModal?.classList.add("hidden");
-      pendingRemoveItem = null;
-      return;
     }
 
     confirmRemoveModal?.classList.add("hidden");
     pendingRemoveItem = null;
-    renderTable();
+    await loadRequests();
   });
 
   // ── Confirm Save Modal ────────────────────────────────────────────

@@ -149,6 +149,7 @@ table thead th::after {
 .status-received   { background: #f0fdf4; color: #16a34a; }
 .status-partial    { background: #fef9c3; color: #a16207; }
 .status-cancelled  { background: #fef2f2; color: #dc2626; }
+.status-voided     { background: #fef2f2; color: #dc2626; }
 
 .action-link {
   display: inline-flex;
@@ -395,7 +396,7 @@ table thead th::after {
   background: #dcfce7;
   color: #15803d;
 }
-.status-display.st-cancelled {
+.status-display.st-voided {
   background: #fee2e2;
   color: #b91c1c;
 }
@@ -832,11 +833,11 @@ table thead th::after {
   box-shadow: 0 0 0 3px rgba(161, 98, 7, 0.2);
 }
 
-.item-status-select.status-cancelled {
+.item-status-select.status-voided {
   background-color: #fef2f2; color: #dc2626;
 }
 
-.item-status-select.status-cancelled:focus {
+.item-status-select.status-voided:focus {
   box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.2);
 }
 

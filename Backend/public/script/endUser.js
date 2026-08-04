@@ -21,6 +21,46 @@ document.addEventListener("DOMContentLoaded", async () => {
     btn.onclick = () => overlay.classList.add("hidden");
   }
 
+  function escHtml(str) {
+    const div = document.createElement("div");
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  function showSnapshotConfirmModal({ title, subtitle, bodyHtml, confirmLabel }) {
+    return new Promise((resolve) => {
+      const modal = document.getElementById("confirmModal");
+      const bodyEl = document.getElementById("confirmModalBody");
+      const titleEl = document.getElementById("confirmModalTitle");
+      const subtitleEl = document.getElementById("confirmModalSubtitle");
+      const okBtn = document.getElementById("okConfirmBtn");
+      const cancelBtn = document.getElementById("cancelConfirmBtn");
+      const closeBtn = document.getElementById("closeConfirmModal");
+      if (!modal || !bodyEl || !okBtn || !cancelBtn) { resolve(true); return; }
+
+      if (titleEl) titleEl.textContent = title || "Confirm";
+      if (subtitleEl) subtitleEl.textContent = subtitle || "";
+      bodyEl.innerHTML = bodyHtml;
+      okBtn.textContent = confirmLabel || "Confirm";
+      modal.classList.remove("hidden");
+
+      const cleanup = (result) => {
+        modal.classList.add("hidden");
+        okBtn.textContent = "Confirm";
+        okBtn.removeEventListener("click", onOk);
+        cancelBtn.removeEventListener("click", onCancel);
+        closeBtn.removeEventListener("click", onCancel);
+        resolve(result);
+      };
+      const onOk = () => cleanup(true);
+      const onCancel = () => cleanup(false);
+      okBtn.addEventListener("click", onOk);
+      cancelBtn.addEventListener("click", onCancel);
+      closeBtn.addEventListener("click", onCancel);
+      modal.addEventListener("click", (e) => { if (e.target === modal) cleanup(false); }, { once: true });
+    });
+  }
+
   // ── Department filter — derived from user data ────────────────────────
   function populateDepartmentFilter() {
     const departments = [...new Set(
@@ -577,15 +617,46 @@ document.addEventListener("DOMContentLoaded", async () => {
     const contactVal = document.getElementById("addContact").value.trim();
 
     const payload = {
-      eu_name:       document.getElementById("addName").value.trim(),
-      eu_emp_id:     Number(document.getElementById("addEmpId").value.trim()),
-      eu_division:   document.getElementById("addDivision").value.trim(),
-      eu_department: document.getElementById("addDepartment").value,
-      eu_email:      emailVal   || null,
-      eu_contact_no: contactVal || null,
-      eu_location:   document.getElementById("addLocation").value,
-      eu_status:     "Active",
+      euName:       document.getElementById("addName").value.trim(),
+      euEmpId:      Number(document.getElementById("addEmpId").value.trim()),
+      euDivision:   document.getElementById("addDivision").value.trim(),
+      euDepartment: document.getElementById("addDepartment").value,
+      euEmail:      emailVal   || null,
+      euContactNo:  contactVal || null,
+      euLocation:   document.getElementById("addLocation").value,
+      euStatus:     "Active",
     };
+
+    const deptSelect = document.getElementById("addDepartment");
+    const deptLabel  = deptSelect.selectedOptions[0]?.textContent?.trim() || payload.euDepartment || "\u2014";
+
+    const confirmed = await showSnapshotConfirmModal({
+      title: "Add End User",
+      subtitle: "Review the details before creating.",
+      bodyHtml: `<div class="confirm-value-block">
+          <span class="confirm-label">Name</span>
+          <strong>${escHtml(payload.euName)}</strong>
+          <span class="confirm-label">Employee ID</span>
+          <strong>${escHtml(String(payload.euEmpId))}</strong>
+          <span class="confirm-label">Division</span>
+          <strong>${escHtml(payload.euDivision || "\u2014")}</strong>
+          <span class="confirm-label">Department</span>
+          <strong>${escHtml(deptLabel)}</strong>
+          <span class="confirm-label">Email</span>
+          <strong>${escHtml(payload.euEmail || "\u2014")}</strong>
+          <span class="confirm-label">Contact</span>
+          <strong>${escHtml(payload.euContactNo || "\u2014")}</strong>
+          <span class="confirm-label">Location</span>
+          <strong>${escHtml(payload.euLocation || "\u2014")}</strong>
+        </div>
+        <p class="confirm-note">This will create an active end user account.</p>`,
+      confirmLabel: "Create User",
+    });
+    if (!confirmed) {
+      submitBtn.disabled    = false;
+      submitBtn.textContent = "Create User";
+      return;
+    }
 
     try {
       const res = await fetch(`${API_BASE}/end-user`, {
@@ -713,6 +784,45 @@ document.addEventListener("DOMContentLoaded", async () => {
       euLocation:   document.getElementById("editLocation").value,
       euStatus:     currentStatus,
     };
+
+    const oldUser = filteredUsers.find(u => String(u.eu_id) === String(id));
+    const changeRows = [];
+    const fieldMap = [
+      { label: "Name",       key: "euName",       oldKey: "eu_name",       old: oldUser?.eu_name },
+      { label: "Employee ID",key: "euEmpId",       oldKey: "eu_emp_id",     old: oldUser?.eu_emp_id },
+      { label: "Division",   key: "euDivision",    oldKey: "eu_division",   old: oldUser?.eu_division },
+      { label: "Email",      key: "euEmail",       oldKey: "eu_email",      old: oldUser?.eu_email },
+      { label: "Contact",    key: "euContactNo",   oldKey: "eu_contact_no", old: oldUser?.eu_contact_no },
+      { label: "Location",   key: "euLocation",    oldKey: "eu_location",   old: oldUser?.eu_location },
+    ];
+    for (const f of fieldMap) {
+      const newVal = payload[f.key] != null ? String(payload[f.key]) : "";
+      const oldVal = f.old != null ? String(f.old) : "";
+      if (newVal !== oldVal) {
+        changeRows.push(`<span class="confirm-label">${escHtml(f.label)}</span><span class="confirm-diff-old">${escHtml(oldVal || "\u2014")}</span><span class="confirm-diff-arrow">\u2192</span><strong>${escHtml(newVal || "\u2014")}</strong>`);
+      }
+    }
+    const deptSelect = document.getElementById("editDepartment");
+    const newDeptLabel = deptSelect.selectedOptions[0]?.textContent?.trim() || "";
+    const oldDeptLabel = oldUser?.department_name || "";
+    if (newDeptLabel !== oldDeptLabel) {
+      changeRows.push(`<span class="confirm-label">Department</span><span class="confirm-diff-old">${escHtml(oldDeptLabel || "\u2014")}</span><span class="confirm-diff-arrow">\u2192</span><strong>${escHtml(newDeptLabel || "\u2014")}</strong>`);
+    }
+
+    if (changeRows.length === 0) { closeEditModal(); return; }
+
+    const confirmed = await showSnapshotConfirmModal({
+      title: "Edit End User",
+      subtitle: `Updating ${oldUser?.eu_name || "user"}`,
+      bodyHtml: `<div class="confirm-value-block">${changeRows.join("")}</div>
+        <p class="confirm-note">This will update the end user record immediately.</p>`,
+      confirmLabel: "Save Changes",
+    });
+    if (!confirmed) {
+      submitBtn.disabled    = false;
+      submitBtn.textContent = "Save Changes";
+      return;
+    }
 
     try {
       const res = await fetch(`${API_BASE}/end-user/${id}`, {

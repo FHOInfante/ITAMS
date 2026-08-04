@@ -48,13 +48,17 @@ document.addEventListener("DOMContentLoaded", async () => {
   function showConfirmModal(message) {
     return new Promise((resolve) => {
       const modal = document.getElementById("confirmModal");
-      const msgEl = document.getElementById("confirmModalMessage");
+      const bodyEl = document.getElementById("confirmModalBody");
+      const titleEl = document.getElementById("confirmModalTitle");
+      const subtitleEl = document.getElementById("confirmModalSubtitle");
       const okBtn = document.getElementById("okConfirmBtn");
       const cancelBtn = document.getElementById("cancelConfirmBtn");
       const closeBtn = document.getElementById("closeConfirmModal");
-      if (!modal || !msgEl || !okBtn || !cancelBtn) { resolve(true); return; }
+      if (!modal || !bodyEl || !okBtn || !cancelBtn) { resolve(true); return; }
 
-      msgEl.textContent = message;
+      if (titleEl) titleEl.textContent = "Confirm";
+      if (subtitleEl) subtitleEl.textContent = "";
+      bodyEl.innerHTML = `<p>${escHtml(message)}</p>`;
       modal.classList.remove("hidden");
 
       const cleanup = (result) => {
@@ -71,6 +75,46 @@ document.addEventListener("DOMContentLoaded", async () => {
       closeBtn.addEventListener("click", onCancel);
       modal.addEventListener("click", (e) => { if (e.target === modal) cleanup(false); }, { once: true });
     });
+  }
+
+  function showSnapshotConfirmModal({ title, subtitle, bodyHtml, confirmLabel }) {
+    return new Promise((resolve) => {
+      const modal = document.getElementById("confirmModal");
+      const bodyEl = document.getElementById("confirmModalBody");
+      const titleEl = document.getElementById("confirmModalTitle");
+      const subtitleEl = document.getElementById("confirmModalSubtitle");
+      const okBtn = document.getElementById("okConfirmBtn");
+      const cancelBtn = document.getElementById("cancelConfirmBtn");
+      const closeBtn = document.getElementById("closeConfirmModal");
+      if (!modal || !bodyEl || !okBtn || !cancelBtn) { resolve(true); return; }
+
+      if (titleEl) titleEl.textContent = title || "Confirm";
+      if (subtitleEl) subtitleEl.textContent = subtitle || "";
+      bodyEl.innerHTML = bodyHtml;
+      okBtn.textContent = confirmLabel || "Confirm";
+      modal.classList.remove("hidden");
+
+      const cleanup = (result) => {
+        modal.classList.add("hidden");
+        okBtn.textContent = "Confirm";
+        okBtn.removeEventListener("click", onOk);
+        cancelBtn.removeEventListener("click", onCancel);
+        closeBtn.removeEventListener("click", onCancel);
+        resolve(result);
+      };
+      const onOk = () => cleanup(true);
+      const onCancel = () => cleanup(false);
+      okBtn.addEventListener("click", onOk);
+      cancelBtn.addEventListener("click", onCancel);
+      closeBtn.addEventListener("click", onCancel);
+      modal.addEventListener("click", (e) => { if (e.target === modal) cleanup(false); }, { once: true });
+    });
+  }
+
+  function escHtml(str) {
+    const div = document.createElement("div");
+    div.textContent = str;
+    return div.innerHTML;
   }
 
   const resetPasswordModal       = document.getElementById("resetPasswordModal");
@@ -954,6 +998,44 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     errorMsg.classList.add("hidden");
 
+    const permLabels = checkedCbs.map(cb => {
+      const permId = Number(cb.dataset.permId);
+      const found = permissionCatalog.find(p => p.id === permId);
+      return found?.title || `Permission ${permId}`;
+    });
+
+    function fmtConfirmDateTime(isoStr) {
+      if (!isoStr) return "\u2014";
+      const dt = new Date(isoStr);
+      if (isNaN(dt.getTime())) return isoStr;
+      const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+      let hours = dt.getHours();
+      const ampm = hours >= 12 ? "PM" : "AM";
+      hours = hours % 12 || 12;
+      const mins = String(dt.getMinutes()).padStart(2, "0");
+      return `${months[dt.getMonth()]} ${dt.getDate()}, ${dt.getFullYear()} - ${hours}:${mins}${ampm}`;
+    }
+
+    const permListHtml = permLabels.map(name =>
+      `<div class="confirm-perm-item">\u2022 ${escHtml(name)}</div>`
+    ).join("");
+
+    const confirmed = await showSnapshotConfirmModal({
+      title: "Grant Permissions",
+      subtitle: `Granting to ${user.user_name}`,
+      bodyHtml: `<div class="confirm-value-block">
+          <span class="confirm-label">Permissions</span>
+          <div class="confirm-perm-list">${permListHtml}</div>
+          <span class="confirm-label">Start</span>
+          <strong>${escHtml(fmtConfirmDateTime(startInput.value))}</strong>
+          <span class="confirm-label">End</span>
+          <strong>${escHtml(fmtConfirmDateTime(endInput.value))}</strong>
+        </div>
+        <p class="confirm-note">These are temporary permissions that will expire automatically.</p>`,
+      confirmLabel: "Grant Permissions",
+    });
+    if (!confirmed) return;
+
     try {
       await grantPermissions(user.user_id, checkedIds, startInput.value, endInput.value);
       closePermissionsModal();
@@ -1042,6 +1124,29 @@ document.addEventListener("DOMContentLoaded", async () => {
       editUserRoleError?.classList.remove("visible");
     }
     if (!valid) return;
+
+    const oldEmail = pendingEditUser.user_email || pendingEditUser.email || "";
+    const oldRole  = pendingEditUser.user_role  || "";
+    const emailChanged = email !== oldEmail;
+    const roleChanged  = role  !== oldRole;
+    if (!emailChanged && !roleChanged) { closeEditUserModal(); return; }
+
+    const diffRows = [];
+    if (emailChanged) {
+      diffRows.push(`<span class="confirm-label">Email</span><span class="confirm-diff-old">${escHtml(oldEmail || "\u2014")}</span><span class="confirm-diff-arrow">\u2192</span><strong>${escHtml(email || "\u2014")}</strong>`);
+    }
+    if (roleChanged) {
+      diffRows.push(`<span class="confirm-label">Role</span><span class="confirm-diff-old">${escHtml(oldRole)}</span><span class="confirm-diff-arrow">\u2192</span><strong>${escHtml(role)}</strong>`);
+    }
+
+    const confirmed = await showSnapshotConfirmModal({
+      title: "Edit System User",
+      subtitle: `Updating ${pendingEditUser.user_name}`,
+      bodyHtml: `<div class="confirm-value-block">${diffRows.join("")}</div>
+        <p class="confirm-note">Permissions will be re-synced to match the new role.</p>`,
+      confirmLabel: "Save Changes",
+    });
+    if (!confirmed) return;
 
     const userId = pendingEditUser.user_id;
     try {
@@ -1180,6 +1285,14 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       if (!newPwd)     { changePwdNew.classList.add("input-error");     errNew?.classList.add("visible");     return; }
       if (newPwd !== confirmPwd) { changePwdConfirm.classList.add("input-error"); errConfirm?.classList.add("visible"); return; }
+
+      const confirmed = await showSnapshotConfirmModal({
+        title: "Change Password",
+        bodyHtml: `<p>Are you sure you want to change your password?</p>
+          <p class="confirm-note">You will need to log in again with the new password.</p>`,
+        confirmLabel: "Change Password",
+      });
+      if (!confirmed) return;
 
       try {
         const res = await fetch(`${API_BASE}/user/password`, {
@@ -1550,6 +1663,26 @@ document.addEventListener("DOMContentLoaded", async () => {
         email:    document.getElementById("email").value.trim(),
         role:     document.getElementById("role").value,
       };
+
+      const confirmed = await showSnapshotConfirmModal({
+        title: "Create Account",
+        subtitle: "Review the account details before creating.",
+        bodyHtml: `<div class="confirm-value-block">
+            <span class="confirm-label">Name</span>
+            <strong>${escHtml(payload.name)}</strong>
+            <span class="confirm-label">Username</span>
+            <strong>${escHtml(payload.username)}</strong>
+            <span class="confirm-label">Employee ID</span>
+            <strong>${escHtml(payload.empID)}</strong>
+            <span class="confirm-label">Email</span>
+            <strong>${escHtml(payload.email || "\u2014")}</strong>
+            <span class="confirm-label">Role</span>
+            <strong>${escHtml(payload.role)}</strong>
+          </div>
+          <p class="confirm-note">A default password (Tmcsl@12345) will be assigned.</p>`,
+        confirmLabel: "Create Account",
+      });
+      if (!confirmed) return;
 
       await registerNewUser(payload);
     });

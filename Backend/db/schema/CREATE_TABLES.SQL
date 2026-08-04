@@ -256,7 +256,7 @@ CREATE TABLE IF NOT EXISTS purchase_request_item (
     pr_id               INT(5) UNSIGNED ZEROFILL NOT NULL,
     item_description    TEXT,
     item_quantity       SMALLINT UNSIGNED DEFAULT 1,
-    is_received         BOOLEAN NOT NULL DEFAULT FALSE,
+    item_status         VARCHAR(20) DEFAULT 'In Process',
     unit_price          DECIMAL(10, 2) UNSIGNED DEFAULT 0.00,
     CONSTRAINT fk_pr_item FOREIGN KEY (pr_id) REFERENCES purchase_request(pr_id)
         ON DELETE CASCADE

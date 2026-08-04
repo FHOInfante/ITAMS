@@ -658,3 +658,60 @@ tbody td {
     padding: 5px 8px;
   }
 }
+
+/* ── Snapshot Confirmation Modal ────────────────────────────────────────── */
+.confirm-value-block {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 6px 12px;
+  align-items: center;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+}
+
+.confirm-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #94a3b8;
+  white-space: nowrap;
+}
+
+.confirm-value-block strong {
+  font-size: 13px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.confirm-note {
+  font-size: 12px !important;
+  color: #94a3b8 !important;
+  margin: 0 !important;
+  font-style: italic;
+}
+
+.confirm-diff-old {
+  color: #dc2626;
+  text-decoration: line-through;
+}
+
+.confirm-diff-arrow {
+  color: #94a3b8;
+  margin: 0 4px;
+}
+
+.confirm-perm-list {
+  margin: 4px 0 10px;
+  grid-column: 1 / -1;
+}
+
+.confirm-perm-item {
+  padding: 3px 0;
+  font-size: 0.85rem;
+  color: #334155;
+  line-height: 1.4;
+}

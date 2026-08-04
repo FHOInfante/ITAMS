@@ -6,20 +6,23 @@ import {
   updatePurchaseRequestFields,
   createPurchaseRequestItem,
   getPurchaseRequestItemById,
-  countPurchaseRequestItems,
-  countUnreceivedPurchaseRequestItems,
-  deletePurchaseRequestItemById,
-  updatePurchaseRequestItemAsReceived,
+  countUnprocessedPurchaseRequestItems,
+  countReceivedPurchaseRequestItems,
+  updatePurchaseRequestItemStatus,
   markAllPrItemsAsReceived,
+  markAllPrItemsAsVoided,
   autoCompletePurchaseRequest,
+  autoCancelPurchaseRequest,
 } from "../models/purchasereq.model.js";
 import {
   validateItems,
   validateNewItems,
   normalizeItemsPayload,
-  resolveItemReceivedStatus,
+  resolveItemStatus,
   isPrEditable,
+  hasReceivedItems,
   validatePatchFields,
+  validateItemStatusPatch,
   getTodayDateString,
   resolveReceivedByName,
 } from "../utils/purchasereq.util.js";
@@ -77,22 +80,19 @@ export const addPurchaseRecord = async (
     }
 
     // A newly created PR is always "In Process", so each item's own
-    // isReceived value is honored as submitted (see purchasereq.util.ts).
+    // itemStatus value is honored as submitted (see purchasereq.util.ts).
     // Each item also gets its own "Add Purchase Request Item" creation-style
     // entry, logged against the parent PR's target_id (see decision to roll
     // item-level events into target_table = "purchase_request").
     for (const item of items) {
-      const isReceived = resolveItemReceivedStatus(
-        "In Process",
-        item.isReceived,
-      );
+      const itemStatus = resolveItemStatus("In Process", item.itemStatus);
 
       await createPurchaseRequestItem(
         prId,
         item.itemDescription,
         item.itemQuantity,
         item.unitPrice,
-        isReceived,
+        itemStatus,
       );
 
       if (req.user) {
@@ -107,7 +107,7 @@ export const addPurchaseRecord = async (
             item_description: item.itemDescription,
             item_quantity: item.itemQuantity,
             unit_price: item.unitPrice,
-            is_received: isReceived,
+            item_status: itemStatus,
           },
         ).catch(() => {});
       }
@@ -187,7 +187,9 @@ export const addPurchaseRequestItems = async (
       });
     }
 
-    // Items added after PR creation always start as not received.
+    // Items added after PR creation always start as "In Process" — this
+    // endpoint's request shape has no itemStatus field at all (see
+    // NewPurchaseRequestItemInput in purchasereq.util.ts).
     for (const item of items as {
       itemDescription: string;
       itemQuantity: number;
@@ -198,7 +200,7 @@ export const addPurchaseRequestItems = async (
         item.itemDescription,
         item.itemQuantity,
         item.unitPrice,
-        false,
+        "In Process",
       );
 
       if (req.user) {
@@ -213,7 +215,7 @@ export const addPurchaseRequestItems = async (
             item_description: item.itemDescription,
             item_quantity: item.itemQuantity,
             unit_price: item.unitPrice,
-            is_received: false,
+            item_status: "In Process",
           },
         ).catch(() => {});
       }
@@ -268,7 +270,9 @@ export const editPurchaseRequestStatus = async (
   try {
     // Fetched via getPurchaseRequestById (rather than the lighter
     // getPurchaseRequestStatusById) so the full header snapshot is
-    // available for the "Update Purchase Request" audit entry below.
+    // available for the "Update Purchase Request" audit entry below, and so
+    // its nested items array is available to guard the Cancelled transition
+    // below.
     const record = await getPurchaseRequestById(prId);
 
     if (!record) {
@@ -278,6 +282,17 @@ export const editPurchaseRequestStatus = async (
     if (!isPrEditable(record.pr_status)) {
       return res.status(409).json({
         message: `Cannot edit a purchase request with status "${record.pr_status}"`,
+      });
+    }
+
+    // A purchase request can only be cancelled while none of its items have
+    // already been received — once an item is received it is considered
+    // fulfilled and permanent, so cancelling the whole PR out from under it
+    // is rejected rather than silently discarding that fulfilled item.
+    if (prStatus === "Cancelled" && hasReceivedItems(record.items)) {
+      return res.status(409).json({
+        message:
+          "Cannot cancel a purchase request that has one or more received items",
       });
     }
 
@@ -294,12 +309,21 @@ export const editPurchaseRequestStatus = async (
     // Marking a PR as "Received" forces every one of its items to be
     // considered received as well, regardless of each item's prior state —
     // mirrors the same rule applied to items at PR creation time (see
-    // resolveItemReceivedStatus in purchasereq.util.ts). Note: this mass
-    // side-effect on individual items is intentionally not logged
-    // separately — the PR's own pr_status field flipping to "Received" in
-    // this same entry already communicates that every item is now settled.
+    // resolveItemStatus in purchasereq.util.ts).
+    //
+    // Marking a PR as "Cancelled" forces every one of its items to
+    // "Voided". This is only reachable once the guard above has confirmed
+    // no item is currently "Received", so this only ever moves items that
+    // were "In Process" (or already "Voided") into "Voided".
+    //
+    // Note: this mass side-effect on individual items is intentionally not
+    // logged separately in either case — the PR's own pr_status field
+    // flipping in this same entry already communicates that every item is
+    // now settled.
     if (prStatus === "Received") {
       await markAllPrItemsAsReceived(prId);
+    } else if (prStatus === "Cancelled") {
+      await markAllPrItemsAsVoided(prId);
     }
 
     if (req.user) {
@@ -326,16 +350,22 @@ export const editPurchaseRequestStatus = async (
   }
 };
 
-export const editPurchaseRequestItemReceived = async (
+export const editPurchaseRequestItemStatus = async (
   req: Request & { user?: { user_id: number } },
   res: Response,
 ) => {
   const itemId = Number(req.params.id);
+  const { itemStatus } = req.body;
 
   if (!itemId) {
     return res
       .status(400)
       .json({ message: "Missing purchase request item ID" });
+  }
+
+  const statusError = validateItemStatusPatch(itemStatus);
+  if (statusError) {
+    return res.status(400).json({ message: statusError });
   }
 
   try {
@@ -347,17 +377,17 @@ export const editPurchaseRequestItemReceived = async (
         .json({ message: "Purchase request item not found" });
     }
 
-    if (existingItem.is_received) {
+    if (existingItem.item_status !== "In Process") {
       return res.status(409).json({
-        message:
-          "This item is already marked as received and can no longer be edited",
+        message: `This item is already marked as "${existingItem.item_status}" and can no longer be edited`,
       });
     }
 
     // Fetched via getPurchaseRequestById (rather than the lighter
     // getPurchaseRequestStatusById) so pr_no is available for the item's
     // audit entry, and the full header snapshot is available up front in
-    // case this update triggers an auto-complete transition below.
+    // case this update triggers an auto-complete / auto-cancel transition
+    // below.
     const record = await getPurchaseRequestById(existingItem.pr_id);
 
     if (!record || !isPrEditable(record.pr_status)) {
@@ -366,7 +396,7 @@ export const editPurchaseRequestItemReceived = async (
       });
     }
 
-    await updatePurchaseRequestItemAsReceived(itemId);
+    await updatePurchaseRequestItemStatus(itemId, itemStatus);
 
     if (req.user) {
       const itemSnapshotBase = {
@@ -379,50 +409,69 @@ export const editPurchaseRequestItemReceived = async (
       createAuditLogWithSnapshot(
         req.user.user_id,
         "Update Purchase Request Item",
-        `Marked item as received under PR No: ${record.pr_no}. Item: ${existingItem.item_description}.`,
+        `Marked item as ${itemStatus} under PR No: ${record.pr_no}. Item: ${existingItem.item_description}.`,
         "purchase_request",
         existingItem.pr_id,
-        { ...itemSnapshotBase, is_received: false },
-        { ...itemSnapshotBase, is_received: true },
+        { ...itemSnapshotBase, item_status: "In Process" },
+        { ...itemSnapshotBase, item_status: itemStatus },
       ).catch(() => {});
     }
 
-    // If that was the last outstanding item on this PR, the whole purchase
-    // request is automatically completed: pr_status becomes "Received", and
-    // date_received / received_by are backfilled if not already set (see
-    // autoCompletePurchaseRequest in purchasereq.model.ts for the
-    // "don't overwrite existing values" behavior).
-    const remainingUnreceived = await countUnreceivedPurchaseRequestItems(
+    // If that was the last outstanding ("In Process") item on this PR, the
+    // whole purchase request is automatically settled:
+    //   - if at least one item on the PR ended up "Received", pr_status
+    //     becomes "Received" (date_received / received_by are backfilled if
+    //     not already set — see autoCompletePurchaseRequest).
+    //   - if every item on the PR ended up "Voided" (none were ever
+    //     received), pr_status becomes "Cancelled" instead (see
+    //     autoCancelPurchaseRequest).
+    const remainingUnprocessed = await countUnprocessedPurchaseRequestItems(
       existingItem.pr_id,
     );
-    const prAutoCompleted = remainingUnreceived === 0;
 
-    if (prAutoCompleted) {
-      // received_by is resolved from the authenticated user's user_name via
-      // resolveReceivedByName (falls back to "Unknown User" if the account
-      // record can no longer be found — see purchasereq.util.ts).
-      const receivedByName = req.user
-        ? await resolveReceivedByName(req.user.user_id)
-        : "Unknown User";
-      const dateReceivedToday = getTodayDateString();
+    let prAutoCompleted = false;
+    let prAutoStatus: "Received" | "Cancelled" | null = null;
 
-      await autoCompletePurchaseRequest(
+    if (remainingUnprocessed === 0) {
+      const receivedCount = await countReceivedPurchaseRequestItems(
         existingItem.pr_id,
-        dateReceivedToday,
-        receivedByName,
       );
+
+      if (receivedCount > 0) {
+        // received_by is resolved from the authenticated user's user_name
+        // via resolveReceivedByName (falls back to "Unknown User" if the
+        // account record can no longer be found — see purchasereq.util.ts).
+        const receivedByName = req.user
+          ? await resolveReceivedByName(req.user.user_id)
+          : "Unknown User";
+        const dateReceivedToday = getTodayDateString();
+
+        await autoCompletePurchaseRequest(
+          existingItem.pr_id,
+          dateReceivedToday,
+          receivedByName,
+        );
+        prAutoCompleted = true;
+        prAutoStatus = "Received";
+      } else {
+        await autoCancelPurchaseRequest(existingItem.pr_id);
+        prAutoCompleted = true;
+        prAutoStatus = "Cancelled";
+      }
 
       // This is logged as its own "Update Purchase Request" header-level
       // entry, distinct from the item-level entry above, since it's a real
-      // system-driven change to the PR's own pr_status / date_received /
-      // received_by columns.
+      // system-driven change to the PR's own pr_status (and, when
+      // auto-completed as Received, date_received / received_by) columns.
       if (req.user) {
         const updatedRecord = await getPurchaseRequestById(existingItem.pr_id);
 
         createAuditLogWithSnapshot(
           req.user.user_id,
           "Update Purchase Request",
-          `All items received — Purchase Request auto-completed. PR No: ${record.pr_no}.`,
+          prAutoStatus === "Received"
+            ? `All items settled — Purchase Request auto-completed. PR No: ${record.pr_no}.`
+            : `All items voided — Purchase Request auto-cancelled. PR No: ${record.pr_no}.`,
           "purchase_request",
           existingItem.pr_id,
           extractPrHeaderSnapshot(record),
@@ -431,92 +480,19 @@ export const editPurchaseRequestItemReceived = async (
       }
     }
 
+    const message = !prAutoCompleted
+      ? `Purchase request item marked as ${itemStatus}`
+      : prAutoStatus === "Received"
+        ? `Purchase request item marked as ${itemStatus}. All items are now settled — purchase request automatically marked as Received.`
+        : `Purchase request item marked as ${itemStatus}. All items have been voided — purchase request automatically marked as Cancelled.`;
+
     return res.status(200).json({
-      message: prAutoCompleted
-        ? "Purchase request item marked as received. All items are now received — purchase request automatically marked as Received."
-        : "Purchase request item marked as received",
+      message,
       prAutoCompleted,
+      prAutoStatus,
     });
   } catch (error) {
     console.error("Update Purchase Request Item Error:", error);
-    return res.status(500).json({ message: "Something went wrong" });
-  }
-};
-
-export const deletePurchaseRequestItem = async (
-  req: Request & { user?: { user_id: number } },
-  res: Response,
-) => {
-  const itemId = Number(req.params.id);
-
-  if (!itemId) {
-    return res
-      .status(400)
-      .json({ message: "Missing purchase request item ID" });
-  }
-
-  try {
-    const existingItem = await getPurchaseRequestItemById(itemId);
-
-    if (!existingItem) {
-      return res
-        .status(404)
-        .json({ message: "Purchase request item not found" });
-    }
-
-    if (existingItem.is_received) {
-      return res
-        .status(409)
-        .json({ message: "Received items cannot be deleted" });
-    }
-
-    // Fetched via getPurchaseRequestById (rather than the lighter
-    // getPurchaseRequestStatusById) so pr_no is available for the item's
-    // "Delete Purchase Request Item" audit entry below.
-    const record = await getPurchaseRequestById(existingItem.pr_id);
-
-    if (!record || !isPrEditable(record.pr_status)) {
-      return res.status(409).json({
-        message: `Cannot delete items from a purchase request with status "${record?.pr_status}"`,
-      });
-    }
-
-    const itemCount = await countPurchaseRequestItems(existingItem.pr_id);
-
-    if (itemCount <= 1) {
-      return res.status(409).json({
-        message: "Cannot delete the only remaining item on a purchase request",
-      });
-    }
-
-    await deletePurchaseRequestItemById(itemId);
-
-    // snapshot_after is {} to signal a deletion — diffSnapshots then
-    // reports every field the item held immediately before removal, each
-    // with new_value: null (see audit.util.ts).
-    if (req.user) {
-      createAuditLogWithSnapshot(
-        req.user.user_id,
-        "Delete Purchase Request Item",
-        `Deleted item from PR No: ${record.pr_no}. Item: ${existingItem.item_description}.`,
-        "purchase_request",
-        existingItem.pr_id,
-        {
-          pr_no: record.pr_no,
-          item_description: existingItem.item_description,
-          item_quantity: existingItem.item_quantity,
-          unit_price: existingItem.unit_price,
-          is_received: existingItem.is_received,
-        },
-        {},
-      ).catch(() => {});
-    }
-
-    return res
-      .status(200)
-      .json({ message: "Purchase request item deleted successfully" });
-  } catch (error) {
-    console.error("Delete Purchase Request Item Error:", error);
     return res.status(500).json({ message: "Something went wrong" });
   }
 };

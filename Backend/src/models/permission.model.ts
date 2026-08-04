@@ -47,8 +47,7 @@ export const getActiveTemporaryPermissions = async (
     `SELECT permission_id
      FROM user_permission
      WHERE user_id = ?
-       AND is_temporary = TRUE
-       AND NOW() BETWEEN valid_from AND valid_to`,
+       AND is_temporary = TRUE`,
     [userId],
   );
 

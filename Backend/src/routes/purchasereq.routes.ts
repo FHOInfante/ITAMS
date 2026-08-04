@@ -5,8 +5,7 @@ import {
   fetchPurchaseRecords,
   fetchPurchaseRecord,
   editPurchaseRequestStatus,
-  editPurchaseRequestItemReceived,
-  deletePurchaseRequestItem,
+  editPurchaseRequestItemStatus,
 } from "../controllers/purchasereq.controller.js";
 import { authenticate } from "../middleware/authenticate.middleware.js";
 import { authorize } from "../middleware/authorize.middleware.js";
@@ -50,10 +49,6 @@ router.post(
   addPurchaseRequestItems,
 );
 
-// NOTE: "/item/:id" routes must be registered before the generic "/:id"
-// PATCH route below, otherwise Express would match "/item/5" against
-// "/:id" first (with id = "item") and the item-specific handlers would
-// never be reached.
 router.patch(
   "/item/:id",
   authenticate,
@@ -61,7 +56,7 @@ router.patch(
     permissions: [37],
     roles: ["IT Manager", "IT Supervisor", "System Specialist"],
   }),
-  editPurchaseRequestItemReceived,
+  editPurchaseRequestItemStatus,
 );
 router.patch(
   "/:id",
@@ -71,15 +66,6 @@ router.patch(
     roles: ["IT Manager", "IT Supervisor", "System Specialist"],
   }),
   editPurchaseRequestStatus,
-);
-router.delete(
-  "/item/:id",
-  authenticate,
-  authorize({
-    permissions: [37],
-    roles: ["IT Manager", "IT Supervisor", "System Specialist"],
-  }),
-  deletePurchaseRequestItem,
 );
 
 export default router;

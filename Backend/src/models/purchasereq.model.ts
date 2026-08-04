@@ -60,8 +60,8 @@ export const getPurchaseRequestById = async (
 
 /**
  * Lightweight lookup used to guard write operations (status edits, item
- * add/delete, item received toggling) without pulling the full PR + items
- * payload just to check pr_status.
+ * add, item status transitions) without pulling the full PR + items payload
+ * just to check pr_status.
  */
 export const getPurchaseRequestStatusById = async (
   prId: number,
@@ -128,12 +128,12 @@ export const createPurchaseRequestItem = async (
   itemDescription: string,
   itemQuantity: number,
   unitPrice: number,
-  isReceived: boolean = false,
+  itemStatus: string = "In Process",
 ): Promise<number> => {
   const [result] = await pool.execute<ResultSetHeader>(
-    `INSERT INTO purchase_request_item (pr_id, item_description, item_quantity, unit_price, is_received)
+    `INSERT INTO purchase_request_item (pr_id, item_description, item_quantity, unit_price, item_status)
      VALUES (?, ?, ?, ?, ?)`,
-    [prId, itemDescription, itemQuantity, unitPrice, isReceived],
+    [prId, itemDescription, itemQuantity, unitPrice, itemStatus],
   );
   return result.insertId;
 };
@@ -149,65 +149,79 @@ export const getPurchaseRequestItemById = async (
 };
 
 /**
- * Counts how many line items currently belong to a PR. Used to enforce the
- * "a purchase request must always have at least one item" rule when
- * deleting an item.
+ * Updates a single line item's status. This is a one-way operation — once
+ * item_status moves away from "In Process" (to either "Received" or
+ * "Voided"), the controller layer blocks any further edits to that item
+ * (see purchasereq.controller.ts / editPurchaseRequestItemStatus).
  */
-export const countPurchaseRequestItems = async (
+export const updatePurchaseRequestItemStatus = async (
+  itemId: number,
+  itemStatus: string,
+): Promise<void> => {
+  await pool.execute(
+    `UPDATE purchase_request_item SET item_status = ? WHERE item_id = ?`,
+    [itemStatus, itemId],
+  );
+};
+
+/**
+ * Forces every line item under a PR to item_status = 'Received'. Called
+ * whenever a PR's status is set to "Received" via
+ * PATCH /purchase-request/:id, since the PR-level status is the
+ * authoritative source of truth at that point.
+ */
+export const markAllPrItemsAsReceived = async (prId: number): Promise<void> => {
+  await pool.execute(
+    `UPDATE purchase_request_item SET item_status = 'Received' WHERE pr_id = ?`,
+    [prId],
+  );
+};
+
+/**
+ * Forces every line item under a PR to item_status = 'Voided'. Called
+ * whenever a PR's status is set to "Cancelled" via
+ * PATCH /purchase-request/:id. The controller only allows this transition
+ * to go through when none of the PR's items are currently "Received" (see
+ * hasReceivedItems in purchasereq.util.ts), so this only ever moves items
+ * that were "In Process" (or already "Voided") into "Voided".
+ */
+export const markAllPrItemsAsVoided = async (prId: number): Promise<void> => {
+  await pool.execute(
+    `UPDATE purchase_request_item SET item_status = 'Voided' WHERE pr_id = ?`,
+    [prId],
+  );
+};
+
+/**
+ * Counts how many line items under a PR are still "In Process" (i.e. have
+ * not yet been settled into either "Received" or "Voided"). Used right
+ * after a single item is transitioned to detect whether that item was the
+ * last outstanding one, which triggers auto-completion or auto-cancellation
+ * of the parent PR (see autoCompletePurchaseRequest / autoCancelPurchaseRequest
+ * below).
+ */
+export const countUnprocessedPurchaseRequestItems = async (
   prId: number,
 ): Promise<number> => {
   const [rows] = await pool.execute<RowDataPacket[]>(
-    `SELECT COUNT(*) AS count FROM purchase_request_item WHERE pr_id = ?`,
+    `SELECT COUNT(*) AS count FROM purchase_request_item WHERE pr_id = ? AND item_status = 'In Process'`,
     [prId],
   );
   return rows[0]?.count ?? 0;
 };
 
-export const deletePurchaseRequestItemById = async (
-  itemId: number,
-): Promise<void> => {
-  await pool.execute(`DELETE FROM purchase_request_item WHERE item_id = ?`, [
-    itemId,
-  ]);
-};
-
 /**
- * Marks a single line item as received. This is a one-way operation — once
- * is_received is true, the controller layer blocks any further edits to
- * that item (see purchasereq.controller.ts / editPurchaseRequestItemReceived).
+ * Counts how many line items under a PR currently have item_status =
+ * 'Received'. Used once every item on a PR has been settled
+ * (countUnprocessedPurchaseRequestItems returns 0) to decide whether the
+ * parent PR should be auto-completed as "Received" (one or more items were
+ * received) or auto-cancelled as "Cancelled" (every item ended up voided).
  */
-export const updatePurchaseRequestItemAsReceived = async (
-  itemId: number,
-): Promise<void> => {
-  await pool.execute(
-    `UPDATE purchase_request_item SET is_received = TRUE WHERE item_id = ?`,
-    [itemId],
-  );
-};
-
-/**
- * Forces every line item under a PR to is_received = true. Called whenever
- * a PR's status is set to "Received" via PATCH /purchase-request/:id, since
- * the PR-level status is the authoritative source of truth at that point.
- */
-export const markAllPrItemsAsReceived = async (prId: number): Promise<void> => {
-  await pool.execute(
-    `UPDATE purchase_request_item SET is_received = TRUE WHERE pr_id = ?`,
-    [prId],
-  );
-};
-
-/**
- * Counts how many line items under a PR are still not received. Used right
- * after a single item is marked received to detect whether that item was
- * the last outstanding one, which triggers auto-completion of the parent PR
- * (see autoCompletePurchaseRequest below).
- */
-export const countUnreceivedPurchaseRequestItems = async (
+export const countReceivedPurchaseRequestItems = async (
   prId: number,
 ): Promise<number> => {
   const [rows] = await pool.execute<RowDataPacket[]>(
-    `SELECT COUNT(*) AS count FROM purchase_request_item WHERE pr_id = ? AND is_received = FALSE`,
+    `SELECT COUNT(*) AS count FROM purchase_request_item WHERE pr_id = ? AND item_status = 'Received'`,
     [prId],
   );
   return rows[0]?.count ?? 0;
@@ -215,8 +229,9 @@ export const countUnreceivedPurchaseRequestItems = async (
 
 /**
  * Automatically promotes a purchase request to pr_status = "Received" once
- * its last outstanding item has just been marked received individually via
- * PATCH /purchase-request/item/:id.
+ * its last outstanding item has just been settled (as either "Received" or
+ * "Voided") via PATCH /purchase-request/item/:id, provided at least one of
+ * its items ended up "Received".
  *
  * date_received and received_by are only backfilled if they are currently
  * NULL (COALESCE) — if the caller had already set either of these earlier
@@ -235,5 +250,19 @@ export const autoCompletePurchaseRequest = async (
       received_by = COALESCE(received_by, ?)
     WHERE pr_id = ?`,
     [dateReceived, receivedBy, prId],
+  );
+};
+
+/**
+ * Automatically cancels a purchase request once its last outstanding item
+ * has just been voided via PATCH /purchase-request/item/:id, and every one
+ * of its items has ended up "Voided" (none were ever received). Unlike
+ * autoCompletePurchaseRequest, date_received / received_by are intentionally
+ * left untouched — a cancelled PR was never fulfilled.
+ */
+export const autoCancelPurchaseRequest = async (prId: number): Promise<void> => {
+  await pool.execute(
+    `UPDATE purchase_request SET pr_status = 'Cancelled' WHERE pr_id = ?`,
+    [prId],
   );
 };

@@ -9,11 +9,30 @@ export const VALID_PR_STATUSES = [
 
 type PrStatus = (typeof VALID_PR_STATUSES)[number];
 
+/**
+ * Statuses a line item may be given at PR creation time (or when adding new
+ * items). "Voided" is intentionally excluded here — an item can only be
+ * voided afterwards, one-way, via PATCH /purchase-request/item/:id.
+ */
+export const VALID_ITEM_CREATE_STATUSES = ["In Process", "Received"] as const;
+
+type ItemCreateStatus = (typeof VALID_ITEM_CREATE_STATUSES)[number];
+
+/**
+ * Statuses a line item may be transitioned to via
+ * PATCH /purchase-request/item/:id. An item always starts at "In Process"
+ * (see purchase_request_item table default) and can only move forward,
+ * one-way, into exactly one of these two terminal states.
+ */
+export const VALID_ITEM_PATCH_STATUSES = ["Received", "Voided"] as const;
+
+type ItemPatchStatus = (typeof VALID_ITEM_PATCH_STATUSES)[number];
+
 type PurchaseRequestItemInput = {
   itemDescription: string;
   itemQuantity: number;
   unitPrice: number;
-  isReceived?: boolean;
+  itemStatus?: ItemCreateStatus;
 };
 
 type NewPurchaseRequestItemInput = {
@@ -32,7 +51,10 @@ type PurchaseRequestPatchInput = {
 
 /**
  * Validates the items array submitted on PR creation (POST /purchase-request).
- * Each item may optionally carry its own isReceived flag.
+ * Each item may optionally carry its own itemStatus, restricted to
+ * "In Process" or "Received" — "Voided" is not a valid state for a
+ * brand-new item and can only be reached afterwards via
+ * PATCH /purchase-request/item/:id.
  * Returns a human-readable error message string if invalid, or null if valid.
  */
 export const validateItems = (items: unknown): string | null => {
@@ -56,8 +78,11 @@ export const validateItems = (items: unknown): string | null => {
     if (typeof item.unitPrice !== "number" || item.unitPrice < 0) {
       return "unitPrice must be a non-negative number";
     }
-    if (item.isReceived !== undefined && typeof item.isReceived !== "boolean") {
-      return "isReceived must be a boolean value when provided";
+    if (
+      item.itemStatus !== undefined &&
+      !VALID_ITEM_CREATE_STATUSES.includes(item.itemStatus as ItemCreateStatus)
+    ) {
+      return "itemStatus must be either 'In Process' or 'Received' when provided";
     }
   }
   return null;
@@ -65,9 +90,10 @@ export const validateItems = (items: unknown): string | null => {
 
 /**
  * Validates the items submitted through POST /purchase-request/:id (adding
- * item(s) to an existing PR). Unlike validateItems, isReceived is not part of
- * this shape at all — items added after the fact always start as not received,
- * since "already received on arrival" only makes sense at PR creation time.
+ * item(s) to an existing PR). Unlike validateItems, itemStatus is not part of
+ * this shape at all — items added after the fact always start as
+ * "In Process", since starting an item at "Received" or beyond only makes
+ * sense at PR creation time.
  */
 export const validateNewItems = (items: unknown): string | null => {
   if (!Array.isArray(items) || items.length === 0) {
@@ -95,6 +121,25 @@ export const validateNewItems = (items: unknown): string | null => {
 };
 
 /**
+ * Validates the request body of PATCH /purchase-request/item/:id. itemStatus
+ * is required on every call to this endpoint (there is no partial-update
+ * shape here — the endpoint only ever does one thing: move an item into a
+ * terminal status) and must be either "Received" or "Voided".
+ */
+export const validateItemStatusPatch = (itemStatus: unknown): string | null => {
+  if (itemStatus === undefined || itemStatus === null) {
+    return "itemStatus is required";
+  }
+  if (
+    typeof itemStatus !== "string" ||
+    !VALID_ITEM_PATCH_STATUSES.includes(itemStatus as ItemPatchStatus)
+  ) {
+    return "itemStatus must be either 'Received' or 'Voided'";
+  }
+  return null;
+};
+
+/**
  * POST /purchase-request/:id accepts either a single item object or a JSON
  * array of item objects ("Can be a JSON array for multiple addition").
  * This normalizes both shapes into an array so the rest of the pipeline
@@ -107,14 +152,14 @@ export const normalizeItemsPayload = (body: unknown): unknown[] => {
 };
 
 /**
- * Determines the final is_received value for a single line item being
+ * Determines the final item_status value for a single line item being
  * created as part of PR creation (POST /purchase-request).
  *
  * Business rule: a newly created purchase request always starts out with
  * pr_status "In Process" (see purchasereq.model.ts / createPurchaseRequest),
- * so each item's own isReceived is honored as submitted (defaulting to false
- * if omitted). This allows a PR to be filed while some individual items
- * (e.g. already-stocked items) are pre-marked as received.
+ * so each item's own itemStatus is honored as submitted (defaulting to
+ * "In Process" if omitted). This allows a PR to be filed while some
+ * individual items (e.g. already-stocked items) are pre-marked as received.
  *
  * The prStatus parameter is kept explicit (rather than hardcoding "In
  * Process" inline) so this function still mirrors the same
@@ -122,24 +167,37 @@ export const normalizeItemsPayload = (body: unknown): unknown[] => {
  * (e.g. editPurchaseRequestStatus forcing every item to received), should PR
  * creation ever need to support a non-default initial status.
  *
- * Items can always be marked received afterwards, individually, through the
- * dedicated PATCH /purchase-request/item/:id endpoint.
+ * Items can always be transitioned to "Received" or "Voided" afterwards,
+ * individually, through the dedicated PATCH /purchase-request/item/:id
+ * endpoint.
  */
-export const resolveItemReceivedStatus = (
+export const resolveItemStatus = (
   prStatus: string,
-  itemIsReceived?: boolean,
-): boolean => {
-  if (prStatus === "Received") return true;
-  return itemIsReceived === true;
+  itemStatus?: ItemCreateStatus,
+): string => {
+  if (prStatus === "Received") return "Received";
+  return itemStatus ?? "In Process";
 };
 
 /**
  * A purchase request can no longer be modified — its status, its line items
- * (add/delete), or any individual item's received flag — once it has reached
- * one of the two terminal states, "Received" or "Cancelled".
+ * (add), or any individual item's status — once it has reached one of the
+ * two terminal states, "Received" or "Cancelled".
  */
 export const isPrEditable = (prStatus: string): boolean => {
   return prStatus !== "Received" && prStatus !== "Cancelled";
+};
+
+/**
+ * Guards against cancelling a purchase request that already has one or more
+ * received items — a PR can only be cancelled while every one of its items
+ * is still "In Process" (or already "Voided"). This prevents an already
+ * fulfilled item from being silently discarded by a cancellation.
+ */
+export const hasReceivedItems = (
+  items: { item_status?: string }[] | undefined,
+): boolean => {
+  return (items ?? []).some((item) => item.item_status === "Received");
 };
 
 /**
@@ -208,8 +266,8 @@ export const validatePatchFields = (
 /**
  * Returns today's date formatted as YYYY-MM-DD (MariaDB DATE compatible).
  * Used to auto-stamp date_received when a purchase request is automatically
- * completed after its last outstanding item is marked received (see
- * editPurchaseRequestItemReceived in purchasereq.controller.ts).
+ * completed after its last outstanding item is settled (see
+ * editPurchaseRequestItemStatus in purchasereq.controller.ts).
  */
 export const getTodayDateString = (): string => {
   return new Date().toISOString().slice(0, 10);
@@ -235,6 +293,8 @@ export const resolveReceivedByName = async (
 
 export type {
   PrStatus,
+  ItemCreateStatus,
+  ItemPatchStatus,
   PurchaseRequestItemInput,
   NewPurchaseRequestItemInput,
   PurchaseRequestPatchInput,
