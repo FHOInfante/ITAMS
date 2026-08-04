@@ -2014,6 +2014,20 @@ document.addEventListener("DOMContentLoaded", async () => {
     panel.style.visibility = "";
   }
 
+  // ── Keep summary counts in sync with the Device Type filter only ──
+  // (Active/Spare/Repair/Defective cards should reflect the remaining
+  // data when Type is filtered, but stay unaffected by other filters.)
+  function updateSummaryCardsForTypeFilter() {
+    const typeFilter = columnFilters["device_type"];
+    if (typeFilter && typeFilter.size > 0) {
+      updateSummaryCards(
+        assets.filter((asset) => typeFilter.has(asset.device_type)),
+      );
+    } else {
+      updateSummaryCards(assets);
+    }
+  }
+
   function buildColumnFilterUI() {
     FILTERABLE_COLUMNS.forEach((col) => {
       const th = document.querySelector(
@@ -2111,6 +2125,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         btn.classList.remove("active");
         panel.classList.add("hidden");
         if (col.key === "computer_status") syncStatusCards();
+        if (col.key === "device_type") updateSummaryCardsForTypeFilter();
         renderCurrentView();
       });
       panel.querySelector(".col-filter-apply").addEventListener("click", () => {
@@ -2121,6 +2136,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         btn.classList.toggle("active", checked.length > 0);
         panel.classList.add("hidden");
         if (col.key === "computer_status") syncStatusCards();
+        if (col.key === "device_type") updateSummaryCardsForTypeFilter();
         renderCurrentView();
       });
     });
@@ -2467,6 +2483,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     closeAllFilterPanels();
     syncStatusCards();
+    updateSummaryCardsForTypeFilter();
     renderCurrentView();
   }
 
@@ -2515,6 +2532,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
 
     syncStatusCards();
+    updateSummaryCardsForTypeFilter();
     if (didApply) {
       renderTable(filterAssetsByTab(assets));
     }
