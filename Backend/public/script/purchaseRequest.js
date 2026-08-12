@@ -255,7 +255,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const itemStatus = item.isReceived ? "Received" : (item.itemStatus || "In Process");
     const showReceive = !isReceived;
-    const receiveDisabled = !item.itemId || item.isReceived;
+    const receiveDisabled = !item.itemId || item.isReceived || item.itemStatus === "Voided";
     const voidDisabled = isReceived || item.isReceived || item.itemStatus === "Voided";
     const statusClass = itemStatus === "Received" ? "st-received" : itemStatus === "Voided" ? "st-voided" : "st-in-process";
 
