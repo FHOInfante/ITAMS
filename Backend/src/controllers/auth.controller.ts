@@ -19,6 +19,32 @@ import {
 } from "../utils/permission.util.js";
 import { sanitizeUserSnapshot } from "../utils/audit.util.js";
 
+export const me = async (
+  req: Request & { user?: { user_id: number } },
+  res: Response,
+) => {
+  const userId = req.user?.user_id;
+  if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
+  try {
+    const user = await findUserById(userId);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    const permissions = await getUserPermission(userId);
+
+    return res.status(200).json({
+      user_id: user.user_id,
+      user_name: user.user_name,
+      user_role: user.user_role,
+      user_status: user.user_status,
+      permissions,
+    });
+  } catch (error) {
+    console.error("Me Error:", error);
+    return res.status(500).json({ message: "Something went wrong" });
+  }
+};
+
 export const register = async (
   req: Request & { user?: { user_id: number } },
   res: Response,

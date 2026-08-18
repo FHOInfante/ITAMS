@@ -9,8 +9,6 @@
   <link rel="stylesheet" href="../css/shared.css">
   <link rel="stylesheet" href="../css/auditLogs.css">
   <script>
-    if (!localStorage.getItem("token")) { window.location.href = "../index.html"; }
-    else { const _p = JSON.parse(localStorage.getItem("permissions") || "[]"); if (![1,2,3,4,5,6].some(id => _p.includes(id))) { window.location.href = "../dashboard.html"; } }
     const __origFetch = window.fetch;
     window.fetch = function(u, o) {
       return __origFetch.call(this, u, o).then(function(r) {

@@ -557,8 +557,24 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // ─── Edit User Modal (role + permissions) ──────────────────────────────────
 
-  function openPermissionsModal(user) {
+  async function openPermissionsModal(user) {
     if (!permissionsModal || !permissionsModalTitle || !permissionsModalBody) return;
+
+    // Fetch fresh user data from the API so expired temp permissions are
+    // reflected immediately, even if loadUsers() hasn't been called recently.
+    try {
+      const res = await fetch(`${API_BASE}/user/${user.user_id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const fresh = await res.json();
+        const idx = users.findIndex(u => String(u.user_id) === String(user.user_id));
+        if (idx !== -1) users[idx] = { ...users[idx], ...fresh };
+        user = users[idx] ?? user;
+      }
+    } catch (e) { /* fall back to stale data */ }
+
+    reconcileOverrides();
 
     const baseIds   = getBasePermissionIds(user);
     const baseIdSet = new Set(baseIds.map(String));
@@ -1391,9 +1407,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     const missing = users.filter(u => u.user_id === null);
     if (missing.length > 0) console.warn("Some users are missing a user_id:", missing);
 
+    reconcileOverrides();
     renderTable();
     renderSummary();
-    reconcileOverrides();
   }
 
   async function resetUserPassword(user) {

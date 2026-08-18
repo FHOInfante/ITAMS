@@ -12,7 +12,6 @@
 
     <script>
       if (!localStorage.getItem("token")) { window.location.href = "../index.html"; }
-      else { const _p = JSON.parse(localStorage.getItem("permissions") || "[]"); if (![15,16,17,18,19,20].some(id => _p.includes(id))) { window.location.href = "../dashboard.html"; } }
       const __origFetch = window.fetch;
       window.fetch = function(u, o) {
         return __origFetch.call(this, u, o).then(function(r) {

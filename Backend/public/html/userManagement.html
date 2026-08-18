@@ -10,7 +10,6 @@
   <link rel="stylesheet" href="../css/userManagement.css"/>
   <script>
     if (!localStorage.getItem("token")) { window.location.href = "../index.html"; }
-    else { const _p = JSON.parse(localStorage.getItem("permissions") || "[]"); if (!_p.includes(8)) { window.location.href = "../dashboard.html"; } }
     const __origFetch = window.fetch;
     window.fetch = function(u, o) {
       return __origFetch.call(this, u, o).then(function(r) {
