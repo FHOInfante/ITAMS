@@ -170,7 +170,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const ACTION_GROUPS = {
     "system": [
-      { label: null, actions: [...SYSTEM_ACTIONS] },
+      { label: "Session",             actions: ["Login", "Register", "Change Password", "Reset Password"] },
+      { label: "Account Management",  actions: ["Update Status", "Update Role", "Update Username", "Update User Details"] },
+      { label: "Permissions",         actions: ["Grant Permission", "Revoke Permission"] },
+      { label: "File Maintenance",    actions: ["Add Department", "Update Department", "Add Peripheral", "Update Peripheral", "Add Program", "Update Program", "Add Vendor", "Update Vendor", "Add Category", "Update Category Status"] },
+      { label: "End Users",           actions: ["Add End User", "Update End User", "Update End User Status"] },
+      { label: "Purchase Requests",   actions: ["Add Purchase Request", "Update Purchase Request", "Update Purchase Request Item"] },
+      { label: "Reports",             actions: ["Download Computer Report", "Download Software Report", "Download UPS Report", "Download Printer Report", "Download Network Device Report", "Download End User Report"] },
     ],
     "asset-create": [
       { label: null, actions: [...ASSET_CREATE_ACTIONS] },
@@ -372,7 +378,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       let isOpen = categoryOpenState[catKey] === true;
       const section = document.createElement("div");
-      section.className = `category-section${isOpen ? "" : " collapsed"}`;
+      section.className = `category-section${isOpen ? "" : " collapsed"}${catKey === "system" ? " category-full-width" : ""}`;
 
       const label = document.createElement("div");
       label.className = "category-label";
@@ -410,6 +416,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const itemsWrap = document.createElement("div");
       itemsWrap.className = "action-items";
+      if (visibleGroups.length > 1 || visibleGroups.some(g => g.label)) {
+        itemsWrap.classList.add("has-subgroups");
+      }
 
       visibleGroups.forEach((group, gi) => {
         if (group.label && visibleGroups.length > 1) {
@@ -462,12 +471,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
       section.appendChild(itemsWrap);
       actionList.appendChild(section);
-
-      if (ci < categoryKeys.length - 1) {
-        const catDivider = document.createElement("div");
-        catDivider.className = "category-section-divider";
-        actionList.appendChild(catDivider);
-      }
     });
   }
 

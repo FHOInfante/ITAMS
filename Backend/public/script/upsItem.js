@@ -130,11 +130,16 @@
     // ── Permission Helpers ───────────────────────────────────
     // Permission 27 → Edit Asset - UPS (required for ALL edit buttons)
     // Permission 22 → Assign Asset - Computer (required alongside 27 for assignment section)
+    // Permission 4  → View Audit Trail - UPS
     function getUserPermissions() {
         try {
             const raw = localStorage.getItem("permissions");
             return raw ? JSON.parse(raw) : [];
         } catch { return []; }
+    }
+
+    function canViewAuditHistory() {
+        return getUserPermissions().includes(4);
     }
 
     function canEditGeneral() {
@@ -580,11 +585,19 @@
                 <div class="section-header-text">
                     <div class="section-title-text">Quick Info</div>
                 </div>
-                <a href="auditLogs.html?audit=ups:${d.ups_id}"
-                class="audit-log-btn" title="View audit trail for this asset">
-                    <i data-lucide="history"></i>
-                    View History
-                </a>
+                ${canViewAuditHistory()
+                    ? `<a href="auditLogs.html?audit=ups:${d.ups_id}"
+                        class="audit-log-btn" title="View audit trail for this asset">
+                            <i data-lucide="history"></i>
+                            View History
+                        </a>`
+                    : `<div class="perm-btn-wrapper" data-tooltip="You need View Audit Trail - UPS permission to view this asset's history.">
+                        <span class="audit-log-btn audit-log-btn-disabled">
+                            <i data-lucide="history"></i>
+                            View History
+                        </span>
+                    </div>`
+                }
             </div>
             <div class="info-grid">
                 <div class="info-cell"><span class="label">Asset Tag</span>       <span class="value">${val(d.asset_tag)}</span></div>

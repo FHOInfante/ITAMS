@@ -128,13 +128,18 @@
     }
 
     // ── Permission Helpers ───────────────────────────────────
-    // Permission 25 → Edit Asset - Printer (required for ALL edit buttons)
-    // Permission 30 → Edit Asset - Printer (Network Fields) (required alongside 25)
+    // Permission 26 → Edit Asset - Printer (required for ALL edit buttons)
+    // Permission 30 → Edit Asset - Printer (Network Fields) (required alongside 26)
+    // Permission 3  → View Audit Trail - Printer
     function getUserPermissions() {
         try {
             const raw = localStorage.getItem("permissions");
             return raw ? JSON.parse(raw) : [];
         } catch { return []; }
+    }
+
+    function canViewAuditHistory() {
+        return getUserPermissions().includes(3);
     }
 
     function canEditGeneral() {
@@ -583,11 +588,19 @@
                 <div class="section-header-text">
                     <div class="section-title-text">Quick Info</div>
                 </div>
-                <a href="auditLogs.html?audit=printer:${d.printer_id}"
-                class="audit-log-btn" title="View audit trail for this asset">
-                    <i data-lucide="history"></i>
-                    View History
-                </a>
+                ${canViewAuditHistory()
+                    ? `<a href="auditLogs.html?audit=printer:${d.printer_id}"
+                        class="audit-log-btn" title="View audit trail for this asset">
+                            <i data-lucide="history"></i>
+                            View History
+                        </a>`
+                    : `<div class="perm-btn-wrapper" data-tooltip="You need View Audit Trail - Printer permission to view this asset's history.">
+                        <span class="audit-log-btn audit-log-btn-disabled">
+                            <i data-lucide="history"></i>
+                            View History
+                        </span>
+                    </div>`
+                }
             </div>
             <div class="info-grid">
                 <div class="info-cell"><span class="label">Asset Tag</span>     <span class="value">${val(d.asset_tag)}</span></div>

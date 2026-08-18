@@ -880,6 +880,16 @@ body.edit-mode .view-only { display: none !important; }
   color: #2563eb;
 }
 
+.audit-log-btn-disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.audit-log-btn-disabled:hover {
+  background: #fff;
+  border-color: #e2e8f0;
+  color: #0f172a;
+}
+
 /* ── Confirm Modal (replaces window.confirm) ──────────────── */
 .confirm-modal-overlay {
     position: fixed;

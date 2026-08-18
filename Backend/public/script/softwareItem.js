@@ -25,11 +25,16 @@
     // ── Permission Helpers ───────────────────────
     // Permission 25 → Edit Asset - Software (required for global Edit button)
     // Permission 23 → Assign Asset - Software (required for End User Assignment section)
+    // Permission 2  → View Audit Trail - Software
     function getUserPermissions() {
         try {
             const raw = localStorage.getItem("permissions");
             return raw ? JSON.parse(raw) : [];
         } catch { return []; }
+    }
+
+    function canViewAuditHistory() {
+        return getUserPermissions().includes(2);
     }
 
     function canEditGeneral() {
@@ -777,11 +782,19 @@
                 <div class="section-header-text">
                     <div class="section-title-text">Quick Info</div>
                 </div>
-                <a href="auditLogs.html?audit=software:${d.software_id}"
-                class="audit-log-btn" title="View audit trail for this asset">
-                    <i data-lucide="history"></i>
-                    View History
-                </a>
+                ${canViewAuditHistory()
+                    ? `<a href="auditLogs.html?audit=software:${d.software_id}"
+                        class="audit-log-btn" title="View audit trail for this asset">
+                            <i data-lucide="history"></i>
+                            View History
+                        </a>`
+                    : `<div class="perm-btn-wrapper" data-tooltip="You need View Audit Trail - Software permission to view this asset's history.">
+                        <span class="audit-log-btn audit-log-btn-disabled">
+                            <i data-lucide="history"></i>
+                            View History
+                        </span>
+                    </div>`
+                }
             </div>
             <div class="info-grid">
                 <div class="info-cell"><span class="label">Vendor</span>           <span class="value">${val(d.vendor)}</span></div>

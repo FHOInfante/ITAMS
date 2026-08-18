@@ -26,11 +26,16 @@
     // Permission 24 → Edit Asset - Computer (required for ALL 3 edit buttons)
     // Permission 29 → Edit Asset - Computer (Network Fields) (required alongside 24)
     // Permission 22 → Assign Asset - Computer (required alongside 24)
+    // Permission 1  → View Audit Trail - Computer
     function getUserPermissions() {
         try {
             const raw = localStorage.getItem("permissions");
             return raw ? JSON.parse(raw) : [];
         } catch { return []; }
+    }
+
+    function canViewAuditHistory() {
+        return getUserPermissions().includes(1);
     }
 
     function canEditGeneral() {
@@ -879,11 +884,19 @@
                 <div class="section-header-text">
                     <div class="section-title-text">Quick Info</div>
                 </div>
-                <a href="auditLogs.html?audit=computer:${d.computer_id}"
-                class="audit-log-btn" title="View audit trail for this asset">
-                    <i data-lucide="history"></i>
-                    View History
-                </a>
+                ${canViewAuditHistory()
+                    ? `<a href="auditLogs.html?audit=computer:${d.computer_id}"
+                        class="audit-log-btn" title="View audit trail for this asset">
+                            <i data-lucide="history"></i>
+                            View History
+                        </a>`
+                    : `<div class="perm-btn-wrapper" data-tooltip="You need View Audit Trail - Computer permission to view this asset's history.">
+                        <span class="audit-log-btn audit-log-btn-disabled">
+                            <i data-lucide="history"></i>
+                            View History
+                        </span>
+                    </div>`
+                }
             </div>
             <div class="info-grid">
                 <div class="info-cell"><span class="label">Asset Tag</span>    <span class="value">${val(d.asset_tag)}</span></div>
