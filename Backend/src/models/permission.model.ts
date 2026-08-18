@@ -146,8 +146,12 @@ export const grantUserPermissions = async (
   ]);
 
   await pool.query(
-    `INSERT IGNORE INTO user_permission (user_id, permission_id, valid_from, valid_to, is_temporary)
-     VALUES ?`,
+    `INSERT INTO user_permission (user_id, permission_id, valid_from, valid_to, is_temporary)
+      VALUES ?
+      ON DUPLICATE KEY UPDATE
+        valid_from = VALUES(valid_from),
+        valid_to = VALUES(valid_to),
+        is_temporary = VALUES(is_temporary)`,
     [values],
   );
 };

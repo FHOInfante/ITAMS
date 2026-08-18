@@ -24,7 +24,7 @@ const router = express.Router();
 
 const auditAccess = [
   authenticate,
-  authorize({ roles: ["IT Manager", "IT Supervisor"] }),
+  authorize({ permissions: [1, 2, 3, 4, 5, 6], roles: ["IT Manager", "IT Supervisor"] }),
 ];
 
 // TODO: Per-asset audit visibility permissions (1–6) are defined in the

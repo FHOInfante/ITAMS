@@ -8,10 +8,10 @@ const router = Router();
 router.post(
   "/register",
   authenticate,
-  authorize({
-    permissions: [21],
-    roles: ["IT Manager", "IT Supervisor"],
-    freshCheck: true,
+  authorize({ 
+    permissions: [1, 2, 3, 4, 5, 6], 
+    roles: ["IT Manager", "IT Supervisor"]
+    // freshCheck: true,    Removed for Debugging
   }),
   register,
 );

@@ -180,6 +180,19 @@ tbody tr.disabled-row {
   align-items: center;
 }
 
+/* ── Disabled fields in edit modal (e.g. Name, Employee ID) ── */
+#editModal input:disabled {
+  background: #f1f5f9;
+  border-color: #e2e8f0;
+  color: #94a3b8;
+  cursor: not-allowed;
+}
+
+#editModal input:disabled:focus {
+  border-color: #e2e8f0;
+  box-shadow: none;
+}
+
 /* ── Action Buttons ──────────────────────────────────────────────────── */
 .action-btns {
   display: flex;

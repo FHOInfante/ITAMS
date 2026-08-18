@@ -687,8 +687,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     const u = filteredUsers[userIndex];
 
     document.getElementById("editUserId").value   = u.eu_id;
-    document.getElementById("editName").value     = u.eu_name       || "";
-    document.getElementById("editEmpId").value    = u.eu_emp_id     || "";
+
+    const editNameEl  = document.getElementById("editName");
+    const editEmpIdEl = document.getElementById("editEmpId");
+    editNameEl.value      = u.eu_name       || "";
+    editEmpIdEl.value     = u.eu_emp_id     || "";
+    editNameEl.disabled   = true;
+    editEmpIdEl.disabled  = true;
+
     document.getElementById("editDivision").value = u.eu_division   || "";
     document.getElementById("editEmail").value    = u.eu_email      || "";
     document.getElementById("editContact").value  = u.eu_contact_no || "";
@@ -721,8 +727,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // Take snapshot of form values for change detection
     editFormSnapshot = {
-      editName:     document.getElementById("editName").value,
-      editEmpId:    document.getElementById("editEmpId").value,
       editDivision: document.getElementById("editDivision").value,
       editDepartment: document.getElementById("editDepartment").value,
       editEmail:    document.getElementById("editEmail").value,
@@ -754,8 +758,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     // Re-check that changes exist (button was re-enabled, but guard anyway)
     if (editFormSnapshot) {
       const unchanged =
-        document.getElementById("editName").value       === editFormSnapshot.editName &&
-        document.getElementById("editEmpId").value       === editFormSnapshot.editEmpId &&
         document.getElementById("editDivision").value    === editFormSnapshot.editDivision &&
         document.getElementById("editDepartment").value  === editFormSnapshot.editDepartment &&
         document.getElementById("editEmail").value       === editFormSnapshot.editEmail &&
@@ -968,8 +970,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     const btn = document.getElementById("btnSubmitEdit");
     if (!btn || !editFormSnapshot) return;
     const changed =
-      document.getElementById("editName").value       !== editFormSnapshot.editName ||
-      document.getElementById("editEmpId").value       !== editFormSnapshot.editEmpId ||
       document.getElementById("editDivision").value    !== editFormSnapshot.editDivision ||
       document.getElementById("editDepartment").value  !== editFormSnapshot.editDepartment ||
       document.getElementById("editEmail").value       !== editFormSnapshot.editEmail ||
@@ -977,7 +977,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       document.getElementById("editLocation").value    !== editFormSnapshot.editLocation;
     btn.disabled = !changed;
   }
-  const editInputIds = ["editName", "editEmpId", "editDivision", "editDepartment", "editEmail", "editContact", "editLocation"];
+  const editInputIds = ["editDivision", "editDepartment", "editEmail", "editContact", "editLocation"];
   editInputIds.forEach(id => {
     const el = document.getElementById(id);
     if (el) el.addEventListener("input", updateEditSaveBtn);

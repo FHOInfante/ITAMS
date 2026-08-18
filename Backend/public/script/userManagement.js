@@ -351,6 +351,27 @@ document.addEventListener("DOMContentLoaded", async () => {
     catch (e) { /* ignore quota errors */ }
   }
 
+  // After fresh API data arrives, purge any local override entries whose
+  // permissions the backend no longer reports as active temporary permissions.
+  // This keeps the UI in sync when permissions expire or are revoked outside
+  // of the current session.
+  function reconcileOverrides() {
+    for (const userId of Object.keys(temporaryPermissionOverrides)) {
+      const user = users.find(u => String(u.user_id) === String(userId));
+      if (!user) {
+        delete temporaryPermissionOverrides[userId];
+        continue;
+      }
+      const apiTempIds = new Set(getTemporaryFromApi(user).map(Number));
+      temporaryPermissionOverrides[userId] = temporaryPermissionOverrides[userId]
+        .filter(o => apiTempIds.has(Number(o.permissionId)));
+      if (temporaryPermissionOverrides[userId].length === 0) {
+        delete temporaryPermissionOverrides[userId];
+      }
+    }
+    persistOverridesToSession();
+  }
+
   function loadOverridesFromSession() {
     try {
       const raw = sessionStorage.getItem(OVERRIDES_SESSION_KEY);
@@ -1372,6 +1393,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     renderTable();
     renderSummary();
+    reconcileOverrides();
   }
 
   async function resetUserPassword(user) {
@@ -1542,8 +1564,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   if (editUserResetPwdBtn) {
     editUserResetPwdBtn.addEventListener("click", () => {
       if (pendingEditUser) {
-        closeEditUserModal();
         openResetPasswordModal(pendingEditUser);
+        closeEditUserModal();
       }
     });
   }

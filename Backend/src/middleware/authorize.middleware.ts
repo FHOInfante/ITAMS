@@ -27,19 +27,12 @@ export const authorize = (options: {
     }
 
     try {
-      // Role check uses the role embedded in the JWT at login; it is not
-      // re-fetched from the DB, since role reassignment already issues a
-      // new token.
       const hasRole = allowedRoles?.includes(req.user.role) ?? false;
 
       let hasPermission = false;
 
       if (requiredPermissions?.length) {
-        let userPermissions = req.user.permissions;
-
-        if (options.freshCheck) {
-          userPermissions = await getUserPermission(req.user.user_id);
-        }
+        const userPermissions = await getUserPermission(req.user.user_id);
 
         hasPermission = requiredPermissions.some((p) =>
           userPermissions.includes(p),
